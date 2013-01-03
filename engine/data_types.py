@@ -218,18 +218,21 @@ class BaseGame:
     player actions and to export a game state in json.
     It offers hook for extensions.
     """
-    def __init__(self, id_):
+    def __init__(self, id_, extensions, stateIds):
         # each games must have a different number id
         self.id_ = id_
 
         # the activated extensions
-        self.extensions = []
+        self.extensions = {}
 
         # the different states throughout the game
         self.stateIds = []
+
         # used to revert to the state at the beginning of a player
         # turn if one of its actions is not valid
-        self.lastValidState = None
+        self.lastValidStateId = None
+
+        self.players = {}
 
     def addExtention(self, extension):
         self.extension += extension
@@ -252,7 +255,7 @@ class BaseGame:
     def getHistory(self, stateId):
         """
         returns a string with all the actions done since the beginning
-        of the game up to the in a textual form
+        of the game up to the current state, in a textual form
         """
         pass
 
