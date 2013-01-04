@@ -18,7 +18,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import logging
 from os.path import expanduser, exists, join
 from os import makedirs
-import hashlib
 
 from engine.db import DBInterface
 
@@ -89,7 +88,7 @@ class GamesManager:
          6. store new game
         """
         # 1,2
-        gameId = self.DBInterface.createGame(players, extensions)
+        gameId = self.DB.createGame(players, extensions)
 
         # 3
         game = BaseGame(gameId, extensions)
@@ -97,31 +96,10 @@ class GamesManager:
         game.initGame(players)
 
         # 5
-        self.DBInterface.saveGame(game)
+        self.DB.saveGame(game)
 
         # 6
         self.games[gameId] = game
 
         return gameId
-
-    def createPlayer(self, name, email, password):
-        """
-        create the player in the database.
-        raise an exception if already a user with same name or email
-        """
-        sha1_pass = self.getPassHash(email, password)
-        playerId = self.DBInterface.createPlayer(name, email, sha1_pass)
-
-        return playerId
-
-    def getPassHash(self, id_, password):
-        """ sha1 of the salted password """
-        salted_pass = id_[:2] + password
-        return hashlib.sha1(salted_pass.encode('utf-8')).hexdigest()
-        
-
-    def authPlayer(self, email, password):
-        """ return True/False """
-        sha1_pass = self.getPassHash(email, password)
-        return self.DBInterface.authPlayer(email, sha1_pass)
         

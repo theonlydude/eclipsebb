@@ -17,6 +17,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import sqlite3
 from os.path import expanduser, exists, dirname, abspath, join
+import hashlib
 import logging
 
 class DBInterface:
@@ -37,12 +38,16 @@ class DBInterface:
             sql = open(join(cwd, './db.sql'), 'r').read()
 
             # initiate database 
-            db = sqlite3.connect(self.db_path)
+            db = self.connect()
             db.executescript(sql)
             db.commit()
             db.close()
 
             logging.info('Database schema created.')
+
+    def connect(self):
+        return sqlite3.connect(self.db_path,
+                               detect_types=sqlite3.PARSE_DECLTYPES)
 
     # infos saved in the database for a game:
     # -id uniq id of the game (sqlite rowid)
@@ -76,22 +81,57 @@ class DBInterface:
     # -name: name of the player (uniq)
     # -email: email address of the player (uniq)
     # -password: md5 sum of the password
-    def createPlayer(self, name, email, password):
+    def getPassHash(self, id_, password):
+        """ sha1 of the salted password """
+        salted_pass = id_[:2] + password
+        return hashlib.sha1(salted_pass.encode('utf-8')).hexdigest()
+
+    def createPlayer(self, name, email, password, timezone):
         """
         register new player in database.
-        if a player with same email or name already exists, raise an
-        exception.
+        return playerId
+        return None if a player with same email or name already exists
         """
-        conn = sqlite3.connect(self.db_path)
-
-        conn.close()
+        sha1_pass = self.getPassHash(email, password)
+        db = self.connect()
+        cursor = db.cursor()
+        sql = "INSERT INTO players VALUES (NULL, ?, ?, ?, ?)"
+        try:
+            cursor.execute(sql, (name, email, sha1_pass, timezone))
+            db.commit()
+            # the id primary key = rowid in sqlite3
+            playerId = cursor.lastrowid
+            db.close()
+            return playerId
+        except sqlite3.IntegrityError:
+            db.close()
+            return None
 
     def authPlayer(self, email, password):
         """
         check password with the one in database
-        returns True if ok, False otherwise
+        returns (playerId,playerName) if ok, None otherwise
         """
-        pass
+        sha1_pass = self.getPassHash(email, password)
+        db = self.connect()
+        cursor = db.cursor()
+        sql = 'select id, name from players where email = ? and password = ?'
+        cursor.execute(sql, (email, sha1_pass))
+        result = cursor.fetchone()
+        db.close()
+
+        return result
+
+    def getTZ(self):
+        """ return an ordered list (tzId, tzName) """
+        db = self.connect()
+        cursor = db.cursor()
+        sql = 'SELECT diff, name FROM timezones order by diff;'
+        cursor.execute(sql)
+        result = cursor.fetchall()
+        db.close()
+
+        return result
 
     # infos saved in the database for a state:
     # -id: uniq increasing id (sqlite rowid)
