@@ -17,21 +17,38 @@
 -- create all the tables in the schema
 -- put default values for extensions
 
+-- hybrid approach:
+--  * columns only for infos requested from sql requests
+--  * all the other infos in a pickled version of the game
 CREATE TABLE IF NOT EXISTS games (
     id INTEGER PRIMARY KEY,
     name TEXT NOT NULL,
-    -- 
+    -- game not started, waiting for players
+    started BOOL NOT NULL DEFAULT 0,
+    -- game ended
+    ended BOOL NOT NULL DEFAULT 0,
+    -- difficulty
     level INTEGER NOT NULL,
-    cur_state INTEGER,
-    -- waiting for players
-    started BOOL NOT NULL,
-    ended BOOL NOT NULL,
+    -- from 1 to 9
+    cur_turn INTEGER DEFAULT -1,
+    -- the state id from table state
+    cur_state INTEGER DEFAULT -1,
+    -- the next player to play an action
+    next_player INTEGER DEFAULT -1,
+    -- game joined with password
     private BOOL NOT NULL,
     -- only when private game
     password TEXT,
-    -- in UTC
+    ---- all dates in UTC
+    -- creation date of the game
     start_date TIMESTAMP NOT NULL,
-    num_players INTEGER NOT NULL
+    -- date last action in the game
+    last_play TIMESTAMP DEFAULT -1,
+    -- num players for the game
+    num_players INTEGER NOT NULL,
+    -- game creator id
+    creator_id INTEGER NOT NULL,
+    FOREIGN KEY(next_player) REFERENCES players(id)
 );
 
 CREATE TABLE IF NOT EXISTS players (
@@ -45,8 +62,8 @@ CREATE TABLE IF NOT EXISTS players (
 
 CREATE TABLE IF NOT EXISTS timezones (
     -- diff in minutes
-    diff INTEGER PRIMARY KEY NOT NULL
-    name TEXT NOT NULL,
+    diff INTEGER PRIMARY KEY NOT NULL,
+    name TEXT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS games_players (
@@ -88,7 +105,7 @@ INSERT OR IGNORE INTO extensions (name, desc) VALUES('new_discoveries', 'add new
 INSERT OR IGNORE INTO extensions (name, desc) VALUES('predictable_technologies', 'enable predictable technologies');
 INSERT OR IGNORE INTO extensions (name, desc) VALUES('turn_order', 'enable direction of play');
 INSERT OR IGNORE INTO extensions (name, desc) VALUES('alliances', 'enable alliances');
-INSERT OR IGNORE INTO extensions (name, desc) VALUES('small_galaxy', 'enable small galaxy (three players only');
+INSERT OR IGNORE INTO extensions (name, desc) VALUES('small_galaxy', 'enable small galaxy (three players only)');
 
 --insert available timezones
 INSERT OR IGNORE INTO timezones (name, diff) VALUES('UTC-12:00 (Baker Island, Howland Island)', -720);

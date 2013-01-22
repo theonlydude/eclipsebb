@@ -19,12 +19,13 @@ import sqlite3
 from os.path import expanduser, exists, dirname, abspath, join
 import hashlib
 import logging
+import pickle
+from engine.data_types import WebPlayer
 
 class DBInterface:
     """
     Handles the connections to the database
     """
-
     def __init__(self):
         """
         if the .db file doesn't exist create all the tables in the db
@@ -37,7 +38,8 @@ class DBInterface:
             cwd = dirname(abspath(__file__))
             sql = open(join(cwd, './db.sql'), 'r').read()
 
-            # initiate database 
+            # initiate database. do not catch exceptions, we want the
+            # program to stop if we can't create the database.
             db = self.connect()
             db.executescript(sql)
             db.commit()
@@ -46,35 +48,156 @@ class DBInterface:
             logging.info('Database schema created.')
 
     def connect(self):
+        """
+        the detect_types param allow us to store python types directly
+        in the databse.
+        """
         return sqlite3.connect(self.db_path,
                                detect_types=sqlite3.PARSE_DECLTYPES)
 
-    # infos saved in the database for a game:
-    # -id uniq id of the game (sqlite rowid)
-    # -ended
-    # -current state id
-    #
-    # game/players relations stored in a table:
-    # -id
-    # -player id
-    #
-    # game/extensions relations stored in a table:
-    # -id
-    # -extension id
-    def createGame(self, players, extensions):
+    def createGame(self, game, players):
         """ returns the game id """
-        pass
+        sql_game = "insert into games (name, level, private, password, \
+start_date, num_players, creator_id) values (?, ?, ?, ?, ?, ?, ?);"
+        params_game = (game.name, game.level, game.private, game.password,
+                       game.start_date, game.num_players, game.creator_id)
+        sql_player = "insert into games_players (game_id, player_id) \
+values (?, ?);"
+        sql_extension = "insert into games_extensions (game_id, \
+extension_id) values (?, ?);"
+        try:
+            db = self.connect()
+            cursor = db.cursor()
+
+            # create game
+            cursor.execute(sql_game, params_game)
+            game_id = cursor.lastrowid
+
+            # add game/player
+            for player_id in players:
+                if player_id is not None and player_id != -1:
+                    cursor.execute(sql_player, (game_id, player_id))
+
+            # add game/extensions
+            for ext_id in game.extensions.values():
+                cursor.execute(sql_extension, (game_id, ext_id))
+
+            # commit only when everything is inserted
+            db.commit()
+        except Exception:
+            logging.exception("Can't create game {!r} by \
+{}".format(game.name, game.creator_id))
+            return None
+        else:
+            return game_id
+        finally:
+            cursor.close()
+            db.close()
 
     def saveGame(self, game):
         """
         update the content of the game row.
-        also save the current state.
+        return None if error, True if success
         """
-        pass
+        sql = "update games set started=?, ended=?, level=?, \
+cur_turn=?, cur_state=?, next_player=?, private=?, password=?, \
+start_date=?, last_play=?, num_players=? where id = ?"
+        try:
+            db = self.connect()
+            cursor = db.cursor()
 
-    def loadGame(self, gameId):
+            cursor.execute(sql, (game.started, game.ended, game.level,
+                                 game.cur_turn, game.cur_state,
+                                 game.next_player, game.private,
+                                 game.password, game.start_date,
+                                 game.last_play, game.num_players,
+                                 game.id_))
+            db .commit()
+        except Exception:
+            logging.exception()
+            return None
+        else:
+            return True
+        finally:
+            cursor.close()
+            db.close()
+
+    def loadGame(self, game_id):
         """ returns a game object """
-        pass
+        # 1. game params
+        sql = "select * from games where id = ?;"
+        try:
+            db = self.connect()
+            # to have access to returned row as a dict
+            db.row_factory = sqlite3.Row
+            cursor = db.cursor()
+            cursor.execute(sql, (game_id, ))
+        except Exception:
+            logging.exception("DBException while loading game with \
+id {}".format(game_id))
+            return None
+        else:
+            game_params = cursor.fetchone()
+            if game_params is None:
+                return None
+        finally:
+            cursor.close()
+            db.close()
+
+        game = Game.fromDB(*game_params)
+
+        # 2. game players
+
+    def getPubPrivGames(self):
+        """
+        return (None, None) if error
+        """
+        sql_pub = 'SELECT id, name, level, num_players, start_date FROM games where started = 0 and private = 0  order by name;'
+        sql_priv = 'SELECT id, name FROM games where started = 0 and private = 1  order by name;'
+        try:
+            db = self.connect()
+            cursor_pub = db.cursor()
+            cursor_pub.execute(sql_pub)
+            cursor_priv = db.cursor()
+            cursor_priv.execute(sql_priv)
+        except Exception:
+            logging.exception("DBException while fetching pub/priv games")
+            return (None, None)
+        else:
+            pub_raw = cursor_pub.fetchall()
+            priv_raw = cursor_priv.fetchall()
+        finally:
+            cursor_pub.close()
+            cursor_priv.close()
+            db.close()
+
+        def get_players(games_raw, out):
+            for game in games_raw:
+                game_id = game[0]
+                cursor.execute(sql_players, (game_id, ))
+                players = cursor.fetchall()
+                out[game_id] = {'infos': game, 'players': players}
+
+        # now get the already joined players for these games
+        sql_players = 'SELECT player_id FROM games_players WHERE game_id = ?;'
+        try:
+            db = self.connect()
+            cursor = db.cursor()
+
+            pub = {}
+            priv = {}
+            get_players(pub_raw, pub)
+            get_players(priv_raw, priv)
+
+        except Exception:
+            logging.exception("DBException while fetching players")
+            return (None, None)
+        else:
+            return (pub, priv)
+        finally:
+            cursor.close()
+            db.close()
+
 
     # infos saved in the database for a player:
     # -id: uniq id of the player (sqlite rowid)
@@ -93,57 +216,172 @@ class DBInterface:
         return None if a player with same email or name already exists
         """
         sha1_pass = self.getPassHash(email, password)
-        db = self.connect()
-        cursor = db.cursor()
         sql = "INSERT INTO players VALUES (NULL, ?, ?, ?, ?)"
         try:
+            db = self.connect()
+            cursor = db.cursor()
             cursor.execute(sql, (name, email, sha1_pass, timezone))
             db.commit()
+        except sqlite3.IntegrityError:
+            logging.debug("Player ({}, {}) already registered".format(name, email))
+            return None
+        except Exception:
+            logging.exception("DBException while creating player with \
+name {}".format(name))
+            return None
+        else:
             # the id primary key = rowid in sqlite3
             playerId = cursor.lastrowid
-            db.close()
             return playerId
-        except sqlite3.IntegrityError:
+        finally:
+            cursor.close()
             db.close()
-            return None
 
     def authPlayer(self, email, password):
         """
         check password with the one in database
-        returns (playerId,playerName) if ok, None otherwise
+        returns playerId if ok, None otherwise
         """
         sha1_pass = self.getPassHash(email, password)
-        db = self.connect()
-        cursor = db.cursor()
-        sql = 'select id, name from players where email = ? and password = ?'
-        cursor.execute(sql, (email, sha1_pass))
-        result = cursor.fetchone()
-        db.close()
+        sql = 'select id from players where email = ? and password = ?'
+        try:
+            db = self.connect()
+            cursor = db.cursor()
+            cursor.execute(sql, (email, sha1_pass))
+        except Exception:
+            logging.exception("DBException while auth player with \
+email {}".format(email))
+            return None
+        else:
+            result = cursor.fetchone()
+            if result is None:
+                return None
+            else:
+                player_id = result[0]
+                return player_id
+        finally:
+            cursor.close()
+            db.close()
 
-        return result
+    def loadPlayer(self, player_id):
+        """"
+        get player info in database, then instanciate a player
+        """
+        sql = 'select id, name, email, timezone from players where id = ?'
+        try:
+            db = self.connect()
+            cursor = db.cursor()
+            cursor.execute(sql, (player_id, ))
+        except Exception:
+            logging.exception("DBException while loading player with \
+id {}".format(player_id))
+            return None
+        else:
+            result = cursor.fetchone()
+            if result is None:
+                return None
+            else:
+                return WebPlayer(*result)
+        finally:
+            cursor.close()
+            db.close()
+
+
+    def getPlayersInfos(self):
+        """
+        get players infos to be displayed in the game creation page
+        return an ordered list (id, name)
+        """
+        sql = 'SELECT id, name FROM players order by name;'
+        try:
+            db = self.connect()
+            cursor = db.cursor()
+            cursor.execute(sql)
+        except Exception:
+            logging.exception("DBException while fetching players")
+            return None
+        else:
+            result = cursor.fetchall()
+            return result
+        finally:
+            cursor.close()
+            db.close()
 
     def getTZ(self):
         """ return an ordered list (tzId, tzName) """
-        db = self.connect()
-        cursor = db.cursor()
         sql = 'SELECT diff, name FROM timezones order by diff;'
-        cursor.execute(sql)
-        result = cursor.fetchall()
-        db.close()
+        try:
+            db = self.connect()
+            cursor = db.cursor()
+            cursor.execute(sql)
+        except Exception:
+            logging.exception("DBException while fetching timezones")
+            return None
+        else:
+            result = cursor.fetchall()
+            return result
+        finally:
+            cursor.close()
+            db.close()
 
-        return result
+    def saveState(self, game_id, state):
+        """
+        infos saved in the database for a state:
+         -id: uniq increasing id (sqlite rowid)
+         -gameid: id of the game hosting the state
+         -pickle: pickled string of the state
 
-    # infos saved in the database for a state:
-    # -id: uniq increasing id (sqlite rowid)
-    # -gameid: id of the game hosting the state
-    # -pickle: pickled string of the state
-    def saveState(self, gameId, state):
-        pass
+        return the state_id, None if error
+        """
+        sql = "INSERT INTO state VALUES (NULL, ?, ?);"
+        try:
+            pic_state = pickle.dumps(state)
+            db = self.connect()
+            cursor = db.cursor()
+            cursor.execute(sql, (game_id, pic_state))
+            db.commit()
+        except Exception:
+            logging.exception("DBException while saving state for \
+game {}".format(game_id))
+            return None
+        else:
+            state_id = cursor.lastrowid
+            return state_id
+        finally:
+            cursor.close()
+            db.close()
 
-    def loadState(self, stateId):
-        pass
+    def loadState(self, state_id):
+        """ return None if error """
+        sql = "select pickle from state where id = ?;"
+        try:
+            db = self.connect()
+            cursor = db.cursor()
+            cursor.execute(sql, (state_id, ))
+        except Exception:
+            logging.exception("DBException while loading state \
+{}".format(state_id))
+            return None
+        else:
+            pic_state = cursor.fetchone()
+            return pickle.loads(pic_state)
+        finally:
+            cursor.close()
+            db.close()
 
-    # infos saved in the database for an extension:
-    # -id uniq id of the extension (sqlite rowid)
-    # -name name of the extension
-    # -desc description of the extension
+    def getExtensionsInfos(self):
+        """ return a list (id, name, desc) """
+        sql = 'SELECT id, name, desc FROM extensions;'
+        try:
+            db = self.connect()
+            cursor = db.cursor()
+            cursor.execute(sql)
+        except Exception:
+            logging.exception("DBException while fetching extensions")
+            return None
+        else:
+            result = cursor.fetchall()
+            return result
+        finally:
+            cursor.close()
+            db.close()

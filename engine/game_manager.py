@@ -20,6 +20,7 @@ from os.path import expanduser, exists, join
 from os import makedirs
 
 from engine.db import DBInterface
+from engine.data_types import Game
 
 class GamesManager:
     """
@@ -29,9 +30,6 @@ class GamesManager:
     Save the games in the database after each turn.
     Load running games from the database (after a program stop).
     Allow to browse ended games.
-
-    Do not catch database exceptions, to be handled with a big
-    try/catch by the webserver.
     """
     def __init__(self):
         self.share_path = expanduser('~/.local/share/eclipsebb/')
@@ -41,65 +39,113 @@ class GamesManager:
         # init logging
         log_file = join(self.share_path, 'eclipse.log')
         logging.basicConfig(filename=log_file, level=logging.INFO)
+        logging.info('Starting')
 
         # the games, accessed by their id
         # TODO::limit the number of games loaded in memory at the same
         # time to avoid too important memory consumption
         self.games = {}
 
+        # the players, accessed by their id
+        self.web_players = {}
+
         self.DB = DBInterface()
 
-    def saveGame(self, gameId):
+    def saveGame(self, game_id):
         """ save a game to the database """
-        self.DB.saveGame(self.games[gameId])
+        self.DB.saveGame(self.games[game_id])
 
-    def loadGame(self, gameId):
+    def loadGame(self, game_id):
         """ load a game from the database """
-        self.games[gameId] = self.DB.loadGame(gameId)
+        if game_id not in self.games:
+            # load game
+            game = self.DB.loadGame(game_id)
+            if game is None:
+                logging.error("Can't load game with id {}".format(game_id))
+                return None
 
-    def getGame(self, gameId):
+            # load players
+            players = self.DB.loadGamePlayers(game_id)
+            if players is None:
+                logging.error("Can't load players for game with id \
+{}".format(game_id))
+                return None
+
+            # load extensions
+            ext = self.DB.loadGameExt(game_id)
+            if ext is None:
+                logging.error("Can't load extensions for game with id \
+{}".format(game_id))
+                return None
+
+            # load states
+            states_ids = self.DB.loadGameStates(game_id)
+            if states_ids is None:
+                logging.error("Can't load states for game with id \
+{}".format(game_id))
+                return None
+            game.states_ids = states_ids
+
+            self.games[game_id] = game
+
+        return self.games[game_id]
+
+    def getGame(self, game_id):
         """
         Returns the game, load it from database if not already in
         memory
         """
-        if gameId in self.games:
-            return self.games[gameId]
-        else:
-            self.loadGame(gameId)
-            return self.games[gameId]
+        if game_id not in self.games:
+            if not self.loadGame(game_id):
+                return None
+        return self.games[game_id]
 
-    def getRunningGames(self, playerId):
-        """ return the ids of the games the player is currently playing """
+    def getRunningGames(self, player_id):
+        """ return the games the player is currently playing """
+        pass
+    #        web_games = self.DB.getRunningGames(player_id)
+    #        games = []
+    #        for web_game in web_games:
+    #            game.append(self.loadGame(game_id))
+
+    def getEndedGames(self, player_id):
+        """ return the completed games the player played in """
         pass
 
-    def getEndedGames(self, playerId):
-        """ return the ids of the completed games the player played in """
-        pass
-
-
-    def createNewGame(self, players, extensions):
+    def createGame(self, creator_id, name, level, private, password,
+                   num_players, players, extensions):
         """
-        Instanciate a new game:
-         1. create in db to get id
-         2. add players/extensions relations in db
-         3. create game object
-         4. instantiate first state
-         5. save game in db
-         6. store new game
+        Instanciate a new game
+        return game_id if success, None otherwise
         """
-        # 1,2
-        gameId = self.DB.createGame(players, extensions)
+        game = Game(creator_id, name, level, private, password,
+                    num_players, extensions)
 
-        # 3
-        game = BaseGame(gameId, extensions)
-        # 4
-        game.initGame(players)
+        game_id = self.DB.createGame(game, players)
 
-        # 5
-        self.DB.saveGame(game)
+        if game_id is None:
+            logging.error("Error inserting game {!r} by {} in \
+database.".format(name, creator_id))
+            return None
 
-        # 6
-        self.games[gameId] = game
+        logging.info("Game {!r} successfully created".format(name))
 
-        return gameId
+        game.id_ = game_id
+        self.games[game_id] = game
+        return game_id
         
+    def loadPlayer(self, player_id):
+        """ load a player from the database """
+        player = self.DB.loadPlayer(player_id)
+        if player is None:
+            return None
+        else:
+            self.web_players[player_id] = player
+            return player_id
+
+    def getPlayer(self, player_id):
+        if player_id not in self.web_players:
+            if self.loadPlayer(player_id) is None:
+                return None
+
+        return self.web_players[player_id]
