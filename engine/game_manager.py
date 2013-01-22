@@ -38,7 +38,7 @@ class GamesManager:
 
         # init logging
         log_file = join(self.share_path, 'eclipse.log')
-        logging.basicConfig(filename=log_file, level=logging.INFO)
+        logging.basicConfig(filename=log_file, level=logging.DEBUG)
         logging.info('Starting')
 
         # the games, accessed by their id
@@ -65,21 +65,29 @@ class GamesManager:
                 return None
 
             # load players
-            players = self.DB.loadGamePlayers(game_id)
-            if players is None:
-                logging.error("Can't load players for game with id \
+            players_ids = self.DB.getGamePlayersIds(game_id)
+            if players_ids is None:
+                logging.error("Can't get players ids for game with id \
 {}".format(game_id))
                 return None
 
+            game.players_ids = players_ids
+            for player_id in players_ids:
+                if self.loadPlayer(player_id) == None:
+                    logging.error("Can't load player with id \
+{}".format(player_id))
+                    return None
+
             # load extensions
-            ext = self.DB.loadGameExt(game_id)
+            ext = self.DB.getGameExt(game_id)
             if ext is None:
                 logging.error("Can't load extensions for game with id \
 {}".format(game_id))
                 return None
+            game.extensions = ext
 
             # load states
-            states_ids = self.DB.loadGameStates(game_id)
+            states_ids = self.DB.getGameStatesIds(game_id)
             if states_ids is None:
                 logging.error("Can't load states for game with id \
 {}".format(game_id))
@@ -111,6 +119,22 @@ class GamesManager:
     def getEndedGames(self, player_id):
         """ return the completed games the player played in """
         pass
+
+    def getPubPrivGames(self):
+        """ """
+        pub_ids, priv_ids = self.DB.getPubPrivGamesIds()
+
+        logging.debug("pub=[{}] priv=[{}]".format(pub_ids, priv_ids))
+
+        pub_games = [self.getGame(id_) for id_ in pub_ids]
+        if None in pub_games:
+            return (None, None)
+
+        priv_games = [self.getGame(id_) for id_ in priv_ids]
+        if None in priv_games:
+            return (None, None)
+
+        return (pub_games, priv_games)
 
     def createGame(self, creator_id, name, level, private, password,
                    num_players, players, extensions):

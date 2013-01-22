@@ -55,7 +55,7 @@ class DBInterface:
         return sqlite3.connect(self.db_path,
                                detect_types=sqlite3.PARSE_DECLTYPES)
 
-    def createGame(self, game, players):
+    def createGame(self, game, players_ids):
         """ returns the game id """
         sql_game = "insert into games (name, level, private, password, \
 start_date, num_players, creator_id) values (?, ?, ?, ?, ?, ?, ?);"
@@ -74,9 +74,10 @@ extension_id) values (?, ?);"
             game_id = cursor.lastrowid
 
             # add game/player
-            for player_id in players:
+            for player_id in players_ids:
                 if player_id is not None and player_id != -1:
                     cursor.execute(sql_player, (game_id, player_id))
+                    game.players_ids.append(player_id)
 
             # add game/extensions
             for ext_id in game.extensions.values():
@@ -123,8 +124,10 @@ start_date=?, last_play=?, num_players=? where id = ?"
             db.close()
 
     def loadGame(self, game_id):
-        """ returns a game object """
-        # 1. game params
+        """
+        returns a game object
+        do not load players ids, extensions ids, states ids
+        """
         sql = "select * from games where id = ?;"
         try:
             db = self.connect()
@@ -140,20 +143,78 @@ id {}".format(game_id))
             game_params = cursor.fetchone()
             if game_params is None:
                 return None
+            game = Game.fromDB(**game_params)
+            return game
         finally:
             cursor.close()
             db.close()
 
-        game = Game.fromDB(*game_params)
+    def getGamePlayersIds(self, game_id):
+        """ return a list of players ids """
+        sql = "select player_id from games_players where game_id = ?;"
+        try:
+            db = self.connect()
+            cursor = db.cursor()
+            cursor.execute(sql, (game_id, ))
+        except Exception:
+            logging.exception("DBException while getting players for game \
+with id {}".format(game_id))
+            return None
+        else:
+            players_ids = cursor.fetchall()
+            players_ids = [id_[0] for id_ in players_ids]
+            return players_ids
+        finally:
+            cursor.close()
+            db.close()
 
-        # 2. game players
+    def getGameExt(self, game_id):
+        """ return a dict of id: name """
+        sql = "select g.extension_id, e.name from games_extensions g, \
+extensions e where g.extension_id = e.id and g.game_id = ?;"
+        try:
+            db = self.connect()
+            cursor = db.cursor()
+            cursor.execute(sql, (game_id, ))
+        except Exception:
+            logging.exception("DBException while getting extensions for game\
+ with id {}".format(game_id))
+            return None
+        else:
+            ext_ids_names = cursor.fetchall()
+            ext_ids_names = {id_: name for (id_, name) in ext_ids_names}
+            return ext_ids_names
+        finally:
+            cursor.close()
+            db.close()
 
-    def getPubPrivGames(self):
+    def getGameStatesIds(self, game_id):
+        """ return a list of states ids """
+        sql = "select id from state where game_id = ?;"
+        try:
+            db = self.connect()
+            cursor = db.cursor()
+            cursor.execute(sql, (game_id, ))
+        except Exception:
+            logging.exception("DBException while getting states for game\
+ with id {}".format(game_id))
+            return None
+        else:
+            states_ids = cursor.fetchall()
+            states_ids = [id_[0] for id_ in states_ids]
+            return states_ids
+        finally:
+            cursor.close()
+            db.close()
+
+    def getPubPrivGamesIds(self):
         """
         return (None, None) if error
         """
-        sql_pub = 'SELECT id, name, level, num_players, start_date FROM games where started = 0 and private = 0  order by name;'
-        sql_priv = 'SELECT id, name FROM games where started = 0 and private = 1  order by name;'
+        sql_pub = 'SELECT id FROM games where started = 0 and private = 0 \
+order by name;'
+        sql_priv = 'SELECT id FROM games where started = 0 and private = 1 \
+order by name;'
         try:
             db = self.connect()
             cursor_pub = db.cursor()
@@ -164,40 +225,15 @@ id {}".format(game_id))
             logging.exception("DBException while fetching pub/priv games")
             return (None, None)
         else:
-            pub_raw = cursor_pub.fetchall()
-            priv_raw = cursor_priv.fetchall()
+            pub_ids = cursor_pub.fetchall()
+            pub_ids = [id_[0] for id_ in pub_ids]
+            priv_ids = cursor_priv.fetchall()
+            priv_ids = [id_[0] for id_ in priv_ids]
+            return (pub_ids, priv_ids)
         finally:
             cursor_pub.close()
             cursor_priv.close()
             db.close()
-
-        def get_players(games_raw, out):
-            for game in games_raw:
-                game_id = game[0]
-                cursor.execute(sql_players, (game_id, ))
-                players = cursor.fetchall()
-                out[game_id] = {'infos': game, 'players': players}
-
-        # now get the already joined players for these games
-        sql_players = 'SELECT player_id FROM games_players WHERE game_id = ?;'
-        try:
-            db = self.connect()
-            cursor = db.cursor()
-
-            pub = {}
-            priv = {}
-            get_players(pub_raw, pub)
-            get_players(priv_raw, priv)
-
-        except Exception:
-            logging.exception("DBException while fetching players")
-            return (None, None)
-        else:
-            return (pub, priv)
-        finally:
-            cursor.close()
-            db.close()
-
 
     # infos saved in the database for a player:
     # -id: uniq id of the player (sqlite rowid)

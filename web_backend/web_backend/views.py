@@ -139,7 +139,7 @@ def view_joingame(request):
 
     gm =  request.registry.settings['gm']
 
-    pub_games, priv_games = gm.DB.getPubPrivGames()
+    pub_games, priv_games = gm.getPubPrivGames()
 
     if pub_games is None or priv_games is None:
         return db_read_error(request, 'games')
