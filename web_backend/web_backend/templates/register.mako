@@ -26,7 +26,7 @@
 
   <label>Time Zone</label>
   <select name="timezone">
-    % for tzId, tzName in timezones:
+    % for tzId, tzName in timezones.list_tz:
     <option value="${tzId}">${tzName}</option>
     % endfor
   </select>

@@ -20,7 +20,7 @@ from os.path import expanduser, exists, dirname, abspath, join
 import hashlib
 import logging
 import pickle
-from engine.data_types import WebPlayer
+from engine.data_types import WebPlayer, Timezones
 
 class DBInterface:
     """
@@ -354,8 +354,8 @@ id {}".format(player_id))
             logging.exception("DBException while fetching timezones")
             return None
         else:
-            result = cursor.fetchall()
-            return result
+            tz = cursor.fetchall()
+            return Timezones(tz)
         finally:
             cursor.close()
             db.close()

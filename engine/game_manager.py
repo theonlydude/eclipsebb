@@ -51,6 +51,9 @@ class GamesManager:
 
         self.DB = DBInterface()
 
+        self.ext_infos = self.DB.getExtensionsInfos()
+        self.timezones = self.DB.getTZ()
+
     def saveGame(self, game_id):
         """ save a game to the database """
         self.DB.saveGame(self.games[game_id])

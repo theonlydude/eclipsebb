@@ -62,10 +62,6 @@ def view_create_game(request):
         return {'auth': False}
     
     gm =  request.registry.settings['gm']
-    extensions_infos = gm.DB.getExtensionsInfos()
-
-    if extensions_infos is None:
-        return db_read_error(request, 'extensions infos')
 
     if request.method == 'POST':
         game_name = get_post_str(request, 'name')
@@ -83,7 +79,7 @@ def view_create_game(request):
 
         # extensions is a dict of name->id
         extensions = {}
-        for id_, name, desc in extensions_infos:
+        for id_, name, desc in gm.ext_infos:
             checked = get_post_bool(request, name)
             if checked == True:
                 extensions[name] = id_
@@ -107,7 +103,6 @@ def view_create_game(request):
                     request.session.flash('Game successfuly create.')
                     return HTTPFound(location=request.route_url('home'))
 
-    gm =  request.registry.settings['gm']
     player = gm.getPlayer(request.session['player_id'])
     players_infos = gm.DB.getPlayersInfos()
 
@@ -117,7 +112,7 @@ def view_create_game(request):
     return {'auth': True,
             'player': player,
             'players_infos': players_infos,
-            'extensions_infos': extensions_infos}
+            'extensions_infos': gm.ext_infos}
 
 @view_config(route_name='mygames', renderer='mygames.mako')
 def view_mygames(request):
@@ -146,7 +141,8 @@ def view_joingame(request):
 
     return {'auth': True,
             'pub_games': pub_games,
-            'priv_games': priv_games}
+            'priv_games': priv_games,
+            'timezones': gm.timezones}
 
 @view_config(route_name='home', renderer='home.mako')
 def view_home(request):
@@ -221,7 +217,4 @@ def view_register(request):
                     request.session.flash('Already registered name or email.')
 
     gm = request.registry.settings['gm']
-    tzs = gm.DB.getTZ()
-    if tzs is None:
-        return db_read_error(request, 'timezones')
-    return {'timezones': tzs}
+    return {'timezones': gm.timezones}

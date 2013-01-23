@@ -47,3 +47,13 @@ input {
   border-bottom: 2px solid #fbc2c4;
   padding: 0 20px 30px 20px;
 }            
+
+table {
+  margin: 1em;
+  border-collapse: collapse;
+}
+
+td, th {
+  padding: .3em;
+  border: 1px #ccc solid;
+}

@@ -16,10 +16,17 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 from datetime import datetime
+from collections import OrderedDict
 
 class WebPlayer:
     def __init__(self, *args):
         self.id_, self.name, self.email, self.timezone = args
+
+class Timezones:
+    def __init__(self, timezones):
+        """ get [(-2, 'blabla'), (-1, 'blibli') ] """
+        self.list_tz = timezones
+        self.dict_tz = OrderedDict(timezones)
 
 class Game:
     """
