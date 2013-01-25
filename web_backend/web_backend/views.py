@@ -119,13 +119,14 @@ def view_mygames(request):
     if not is_auth(request):
         return {'auth': False}
 
-    # get player running games
     gm =  request.registry.settings['gm']
-    player = gm.getPlayer(request.session['player_id'])
-    #running_games = gm.getRunningGames(player.id_)
-    running_games = []
+    my_games = gm.getMyGames(request.session['player_id'])
+
+    if my_games is None:
+        return db_read_error(request, 'games')
+
     return {'auth': True,
-            'running_games': running_games}
+            'my_games': my_games}
 
 @view_config(route_name='joingame', renderer='joingame.mako')
 def view_joingame(request):
@@ -133,7 +134,6 @@ def view_joingame(request):
         return {'auth': False}
 
     gm =  request.registry.settings['gm']
-
     pub_games, priv_games = gm.getPubPrivGames()
 
     if pub_games is None or priv_games is None:

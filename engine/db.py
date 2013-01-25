@@ -20,7 +20,8 @@ from os.path import expanduser, exists, dirname, abspath, join
 import hashlib
 import logging
 import pickle
-from engine.data_types import WebPlayer, Timezones
+from engine.web_types import Player, Timezones, Game
+from engine.util import log
 
 class DBInterface:
     """
@@ -55,6 +56,7 @@ class DBInterface:
         return sqlite3.connect(self.db_path,
                                detect_types=sqlite3.PARSE_DECLTYPES)
 
+    @log
     def createGame(self, game, players_ids):
         """ returns the game id """
         sql_game = "insert into games (name, level, private, password, \
@@ -95,6 +97,7 @@ extension_id) values (?, ?);"
             cursor.close()
             db.close()
 
+    @log
     def saveGame(self, game):
         """
         update the content of the game row.
@@ -123,6 +126,7 @@ start_date=?, last_play=?, num_players=? where id = ?"
             cursor.close()
             db.close()
 
+    @log
     def loadGame(self, game_id):
         """
         returns a game object
@@ -149,6 +153,7 @@ id {}".format(game_id))
             cursor.close()
             db.close()
 
+    @log
     def getGamePlayersIds(self, game_id):
         """ return a list of players ids """
         sql = "select player_id from games_players where game_id = ?;"
@@ -168,6 +173,7 @@ with id {}".format(game_id))
             cursor.close()
             db.close()
 
+    @log
     def getGameExt(self, game_id):
         """ return a dict of id: name """
         sql = "select g.extension_id, e.name from games_extensions g, \
@@ -182,12 +188,13 @@ extensions e where g.extension_id = e.id and g.game_id = ?;"
             return None
         else:
             ext_ids_names = cursor.fetchall()
-            ext_ids_names = {id_: name for (id_, name) in ext_ids_names}
+            ext_ids_names = dict(ext_ids_names)
             return ext_ids_names
         finally:
             cursor.close()
             db.close()
 
+    @log
     def getGameStatesIds(self, game_id):
         """ return a list of states ids """
         sql = "select id from state where game_id = ?;"
@@ -207,6 +214,7 @@ extensions e where g.extension_id = e.id and g.game_id = ?;"
             cursor.close()
             db.close()
 
+    @log
     def getPubPrivGamesIds(self):
         """
         return (None, None) if error
@@ -235,6 +243,25 @@ order by name;'
             cursor_priv.close()
             db.close()
 
+    def getMyGamesIds(self, player_id):
+        """ return None if error """
+        sql = 'SELECT game_id FROM games_players where player_id =?;'
+        try:
+            db = self.connect()
+            cursor = db.cursor()
+            cursor.execute(sql, (player_id,))
+        except Exception:
+            logging.exception("DBException while fetching games for player \
+{}".format(player_id))
+            return None
+        else:
+            game_ids = cursor.fetchall()
+            game_ids = [id_[0] for id_ in game_ids]
+            return game_ids
+        finally:
+            cursor.close()
+            db.close()
+
     # infos saved in the database for a player:
     # -id: uniq id of the player (sqlite rowid)
     # -name: name of the player (uniq)
@@ -245,6 +272,7 @@ order by name;'
         salted_pass = id_[:2] + password
         return hashlib.sha1(salted_pass.encode('utf-8')).hexdigest()
 
+    @log
     def createPlayer(self, name, email, password, timezone):
         """
         register new player in database.
@@ -273,6 +301,7 @@ name {}".format(name))
             cursor.close()
             db.close()
 
+    @log
     def authPlayer(self, email, password):
         """
         check password with the one in database
@@ -299,6 +328,7 @@ email {}".format(email))
             cursor.close()
             db.close()
 
+    @log
     def loadPlayer(self, player_id):
         """"
         get player info in database, then instanciate a player
@@ -317,12 +347,13 @@ id {}".format(player_id))
             if result is None:
                 return None
             else:
-                return WebPlayer(*result)
+                return Player(*result)
         finally:
             cursor.close()
             db.close()
 
 
+    @log
     def getPlayersInfos(self):
         """
         get players infos to be displayed in the game creation page
@@ -343,6 +374,7 @@ id {}".format(player_id))
             cursor.close()
             db.close()
 
+    @log
     def getTZ(self):
         """ return an ordered list (tzId, tzName) """
         sql = 'SELECT diff, name FROM timezones order by diff;'
@@ -360,6 +392,7 @@ id {}".format(player_id))
             cursor.close()
             db.close()
 
+    @log
     def saveState(self, game_id, state):
         """
         infos saved in the database for a state:
@@ -387,6 +420,7 @@ game {}".format(game_id))
             cursor.close()
             db.close()
 
+    @log
     def loadState(self, state_id):
         """ return None if error """
         sql = "select pickle from state where id = ?;"
@@ -405,6 +439,7 @@ game {}".format(game_id))
             cursor.close()
             db.close()
 
+    @log
     def getExtensionsInfos(self):
         """ return a list (id, name, desc) """
         sql = 'SELECT id, name, desc FROM extensions;'

@@ -43,7 +43,7 @@ CREATE TABLE IF NOT EXISTS games (
     -- creation date of the game
     start_date TIMESTAMP NOT NULL,
     -- date last action in the game
-    last_play TIMESTAMP DEFAULT -1,
+    last_play TIMESTAMP DEFAULT NULL,
     -- num players for the game
     num_players INTEGER NOT NULL,
     -- game creator id

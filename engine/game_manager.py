@@ -20,7 +20,9 @@ from os.path import expanduser, exists, join
 from os import makedirs
 
 from engine.db import DBInterface
-from engine.data_types import Game
+from engine.web_types import Game
+
+from engine.util import log
 
 class GamesManager:
     """
@@ -54,10 +56,39 @@ class GamesManager:
         self.ext_infos = self.DB.getExtensionsInfos()
         self.timezones = self.DB.getTZ()
 
+    def debug(self, msg):
+        """ called from mako templates to log stuffs """
+        logging.debug(msg)
+
+    @log
+    def createGame(self, creator_id, name, level, private, password,
+                   num_players, players, extensions):
+        """
+        Instanciate a new game
+        return game_id if success, None otherwise
+        """
+        game = Game(creator_id, name, level, private, password,
+                    num_players, extensions)
+
+        game_id = self.DB.createGame(game, players)
+
+        if game_id is None:
+            logging.error("Error inserting game {!r} by {} in \
+database.".format(name, creator_id))
+            return None
+
+        logging.info("Game {!r} successfully created".format(name))
+
+        game.id_ = game_id
+        self.games[game_id] = game
+        return game_id
+        
+    @log
     def saveGame(self, game_id):
         """ save a game to the database """
         self.DB.saveGame(self.games[game_id])
 
+    @log
     def loadGame(self, game_id):
         """ load a game from the database """
         if game_id not in self.games:
@@ -76,7 +107,7 @@ class GamesManager:
 
             game.players_ids = players_ids
             for player_id in players_ids:
-                if self.loadPlayer(player_id) == None:
+                if self.getPlayer(player_id) == None:
                     logging.error("Can't load player with id \
 {}".format(player_id))
                     return None
@@ -101,6 +132,7 @@ class GamesManager:
 
         return self.games[game_id]
 
+    @log
     def getGame(self, game_id):
         """
         Returns the game, load it from database if not already in
@@ -111,23 +143,31 @@ class GamesManager:
                 return None
         return self.games[game_id]
 
-    def getRunningGames(self, player_id):
-        """ return the games the player is currently playing """
-        pass
-    #        web_games = self.DB.getRunningGames(player_id)
-    #        games = []
-    #        for web_game in web_games:
-    #            game.append(self.loadGame(game_id))
+    @log
+    def getMyGames(self, player_id):
+        """ return the games the player is currently playing
+        even the non started ones """
+        my_games_ids = self.DB.getMyGamesIds(player_id)
+        if my_games_ids is None:
+            return None
 
+        my_games = [self.getGame(id_) for id_ in my_games_ids]
+        if None in my_games:
+            return None
+
+        return my_games
+
+    @log
     def getEndedGames(self, player_id):
         """ return the completed games the player played in """
         pass
 
+    @log
     def getPubPrivGames(self):
         """ """
         pub_ids, priv_ids = self.DB.getPubPrivGamesIds()
-
-        logging.debug("pub=[{}] priv=[{}]".format(pub_ids, priv_ids))
+        if pub_ids is None or priv_ids is None:
+            return (None, None)
 
         pub_games = [self.getGame(id_) for id_ in pub_ids]
         if None in pub_games:
@@ -139,28 +179,7 @@ class GamesManager:
 
         return (pub_games, priv_games)
 
-    def createGame(self, creator_id, name, level, private, password,
-                   num_players, players, extensions):
-        """
-        Instanciate a new game
-        return game_id if success, None otherwise
-        """
-        game = Game(creator_id, name, level, private, password,
-                    num_players, extensions)
-
-        game_id = self.DB.createGame(game, players)
-
-        if game_id is None:
-            logging.error("Error inserting game {!r} by {} in \
-database.".format(name, creator_id))
-            return None
-
-        logging.info("Game {!r} successfully created".format(name))
-
-        game.id_ = game_id
-        self.games[game_id] = game
-        return game_id
-        
+    @log
     def loadPlayer(self, player_id):
         """ load a player from the database """
         player = self.DB.loadPlayer(player_id)
@@ -170,6 +189,7 @@ database.".format(name, creator_id))
             self.web_players[player_id] = player
             return player_id
 
+    @log
     def getPlayer(self, player_id):
         if player_id not in self.web_players:
             if self.loadPlayer(player_id) is None:
