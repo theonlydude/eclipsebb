@@ -46,16 +46,18 @@ ${ext} /
 </td>
 </tr>
 
-    % for i in range(1, game.num_players):
+    % for i in range(game.num_players):
       % if i < len(game.players_ids):
+        % if game.players_ids[i] != game.creator_id:
 <%
-        player = gm.getPlayer(game.players_ids[i])
-        tz_desc = timezones.dict_tz[player.timezone]
+          player = gm.getPlayer(game.players_ids[i])
+          tz_desc = timezones.dict_tz[player.timezone]
 %>
 <tr>
 <td>${player.name}</td>
 <td>${tz_desc}</td>
 </tr>
+        % endif
       % else:
 <tr>
 <td><a>Join</a></td>

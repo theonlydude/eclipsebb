@@ -33,3 +33,7 @@ def log(fun):
         ind_level -= 1
         return ret
     return logger
+
+# to define c-like enums
+def enum(**enums):
+    return type('Enum', (), enums)

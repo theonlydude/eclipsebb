@@ -15,6 +15,23 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
+from util import enum
+
+# all this types are stored inside the Game State
+
+class Player:
+    def __init__(self, name):
+        # the id_ is the same as the web player id_
+        self.id_ = id_
+        self.name = name
+        # race is a string
+        self.race = None
+        # a tab of #players races whishes, first is preferred one
+        self.races_wishes = races_wishes
+
+    def setRace(self, race):
+        self.race = race
+
 # an hex has a number of planets, a number id, wormholes, an influence
 # token.
 # it can also be of a special type, like in the extension
@@ -46,13 +63,6 @@ class PopSlot:
         # the player having a pop cube on the slot
         self.popOwner = None
 
-class Player:
-    def __init__(self, name):
-        pass
-
-    def setRace(self, race):
-        pass
-
 class Ship:
     def __init__(self, id_):
         pass
@@ -81,6 +91,8 @@ class SettlerShip:
     def __init__(self, id_):
         pass
 
+game_phases = enum(INIT, TURN, END)
+turn_phases = enum(ACTION, BATTLE, UPKEEP, CLEANUP)
 class GameState:
     """
     the state of the game, to be sent to the client with json:
@@ -92,35 +104,49 @@ class GameState:
      -researchs
     """
     def __init__(self, id_):
+        # uniq id for the state
         self.id_ = id_
 
-        # turn 0:
-        # 0. installation phase: only once per game, when players
-        #                        choose their race
+        # game phase INIT
+        # installation phase: only once per game (when players
+        #                     choose their race)
 
+        # game phase TURN
         # turns 1-9, classic turns;
-        # 1. action phase
-        # 2. battle phase
-        # 3. upkeep phase
-        # 4. cleanup phase
+        ## turn phases:
+        #  1. action phase
+        #  2. battle phase
+        #  3. upkeep phase
+        #  4. cleanup phase
 
-        # 5. end of the game phase: only once per game
-        self.curPhase = 0
+        # game phase END
+        # end of the game phase: only once per game (nothing happened)
+        self.cur_game_phase = game_phases.INIT
+
+        self.cur_turn_phase = None
 
         # the game is played in nine turns
-        self.curTurn = 0
-
-        # True when the last turn is finished
-        self.isFinished = False
+        self.cur_turn = 0
 
         # in a state, store only the actions to apply in order to
         # transition to the next state
-        self.curActions = []
+        self.cur_actions = []
+
+        # store the players, accessed by their ids
+        self.players = {}
+
+        # for the current turn, the order of the players
+        # store the players ids
+        self.players_order = []
+
+    def addPlayer(self, id_, name, races_wishes):
+        player = Player(id_, name, races_wishes)
+        self.players[player.id_] = player
 
     def nextId(self):
         """ every objects in a state must have an uniq id """
-        self.topId += 1
-        return self.topId
+        self.top_id += 1
+        return self.top_id
 
     def exportToJson(self):
         pass
