@@ -103,19 +103,14 @@ extension_id) values (?, ?);"
         update the content of the game row.
         return None if error, True if success
         """
-        sql = "update games set started=?, ended=?, level=?, \
-cur_turn=?, cur_state=?, next_player=?, private=?, password=?, \
-start_date=?, last_play=?, num_players=? where id = ?"
+        sql = "update games set started=?, ended=?, cur_state=?, \
+last_play=?, where id = ?"
         try:
             db = self.connect()
             cursor = db.cursor()
 
-            cursor.execute(sql, (game.started, game.ended, game.level,
-                                 game.cur_turn, game.cur_state,
-                                 game.next_player, game.private,
-                                 game.password, game.start_date,
-                                 game.last_play, game.num_players,
-                                 game.id_))
+            cursor.execute(sql, (game.started, game.ended, game.cur_state,
+                                 game.last_play, game.id_))
             db .commit()
         except Exception:
             logging.exception()

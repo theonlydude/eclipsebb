@@ -24,6 +24,24 @@ from engine.web_types import Game
 
 from engine.util import log
 
+# TODO::do we need it ?
+class StatesManager:
+    """
+    store the states, accessed by their id
+    """
+    def __init__(self):
+        self.states = {}
+
+    def get(self, id_):
+        """ return a state """
+        if id_ in self.states:
+            return self.states[id_]
+        else:
+            return None
+
+    def add(self, state):
+        pass
+
 class GamesManager:
     """
     As we can have multiple games running at the same time we need an

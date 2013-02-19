@@ -17,6 +17,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from datetime import datetime
 from collections import OrderedDict
+from engine.data_types import GameState
 
 class Player:
     def __init__(self, *args):
@@ -49,10 +50,8 @@ class Game:
         self.started = False
         self.ended = False
         self.level = level
-        self.cur_turn = None
-        self.cur_state = None
+        self.cur_state = GameState(num_players)
 
-        self.next_player = None
         self.private = private
         self.password = password
         self.start_date = datetime.utcnow()
@@ -84,29 +83,27 @@ class Game:
         game.id_ = kargs['id']
         game.started = kargs['started']
         game.ended = kargs['ended']
-        game.cur_turn = kargs['cur_turn']
         game.cur_state = kargs['cur_state']
-        game.next_player = kargs['next_player']
         game.start_date = kargs['start_date']
         game.last_play = kargs['last_play']
         return game
 
-    def getState(self, stateId):
+    def getState(self, state_id):
         """ access to previous states """
         pass
 
-    def jsonStateExport(self, stateId):
+    def jsonStateExport(self, state_id):
         """ returns the json string of the state """
         pass
 
-    def revertToState(self, stateId):
+    def revertToState(self, state_id):
         """
         in case one the player action is invalid or if a player want
         to revert its last turn
         """
         pass
 
-    def getHistory(self, stateId):
+    def getHistory(self, state_id):
         """
         returns a string with all the actions done since the beginning
         of the game up to the current state, in a textual form

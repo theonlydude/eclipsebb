@@ -8,7 +8,7 @@ gm =  request.registry.settings['gm']
 <h1>My games</h1>
 
 <table>
-<tr><td colspan="11">My games</td></tr>
+<tr><td colspan="12">My games</td></tr>
 
 <tr>
 <th>&nbsp;</th>
@@ -43,6 +43,11 @@ extensions
 
   % for game in my_games:
 
+<%
+  player = gm.getPlayer(game.creator_id)
+  game_player = game.getPlayer(game.creator_id)
+%>
+
 <tr>
 <td rowspan="${game.num_players}">&nbsp;</td>
 <td rowspan="${game.num_players}">${game.id_}</td>
@@ -50,18 +55,11 @@ extensions
 <td rowspan="${game.num_players}">${game.level}</td>
 <td rowspan="${game.num_players}">${game.num_players}</td>
 <td rowspan="${game.num_players}">${game.start_date}</td>
-
-<%
-  player = gm.getPlayer(game.creator_id)
-  
-%>
-<td></td>
-
 <td rowspan="${game.num_players}">${game.last_play}</td>
 <td rowspan="${game.num_players}">${game.cur_turn}</td>
 <td rowspan="${game.num_players}">${game.cur_state}</td>
-<td rowspan="${game.num_players}">${game.}</td>
-<td rowspan="${game.num_players}">${game.}</td>
+<td>${player.name}</td>
+<td>${game_player.race}</td>
 <td rowspan="${game.num_players}">/
     % for ext in game.extensions.values():
 ${ext} /
@@ -69,6 +67,26 @@ ${ext} /
 </td>
 </tr>
 
+    ## loop through remaining players
+    % for i in range(game.num_players):
+      % if i < len(game.players_ids):
+        % if game.players_ids[i] != game.creator_id:
+<%
+          player = gm.getPlayer(game.players_ids[i])
+          game_player = game.getPlayer(game.players_ids[i])
+%>
+<tr>
+<td>${player.name}</td>
+<td>${game_player.race}</td>
+</tr>
+        % endif
+      % else:
+<tr>
+<td><a>Join</a></td>
+<td></td>
+</tr>
+      % endif
+    % endfor
 
   % endfor
 

@@ -17,9 +17,6 @@
 -- create all the tables in the schema
 -- put default values for extensions
 
--- hybrid approach:
---  * columns only for infos requested from sql requests
---  * all the other infos in a pickled version of the game
 CREATE TABLE IF NOT EXISTS games (
     id INTEGER PRIMARY KEY,
     name TEXT NOT NULL,
@@ -29,12 +26,8 @@ CREATE TABLE IF NOT EXISTS games (
     ended BOOL NOT NULL DEFAULT 0,
     -- difficulty
     level INTEGER NOT NULL,
-    -- from 1 to 9
-    cur_turn INTEGER DEFAULT -1,
     -- the state id from table state
     cur_state INTEGER DEFAULT -1,
-    -- the next player to play an action
-    next_player INTEGER DEFAULT -1,
     -- game joined with password
     private BOOL NOT NULL,
     -- only when private game
@@ -48,7 +41,6 @@ CREATE TABLE IF NOT EXISTS games (
     num_players INTEGER NOT NULL,
     -- game creator id
     creator_id INTEGER NOT NULL,
-    FOREIGN KEY(next_player) REFERENCES players(id)
 );
 
 CREATE TABLE IF NOT EXISTS players (
@@ -92,6 +84,10 @@ CREATE TABLE IF NOT EXISTS state (
     pickle BLOB NOT NULL,
     FOREIGN KEY(game_id) REFERENCES games(id)
 );
+
+CREATE TABLE IF NOT EXISTS races {
+    name TEXT PRIMARY KEY
+};
 
 -- insert available extensions
 INSERT OR IGNORE INTO extensions (name, desc) VALUES('rare_technologies', 'enable rare technologies');
@@ -148,3 +144,22 @@ INSERT OR IGNORE INTO timezones (name, diff) VALUES('UTC+12:00 (Wallis and Futun
 INSERT OR IGNORE INTO timezones (name, diff) VALUES('UTC+12:45 (Chatham Islands)', 765);
 INSERT OR IGNORE INTO timezones (name, diff) VALUES('UTC+13:00 (Tokelau)', 780);
 INSERT OR IGNORE INTO timezones (name, diff) VALUES('UTC+14:00 (Line Islands)', 840);
+
+--insert available races
+INSERT OR IGNORE INTO races (name) VALUES('human');
+INSERT OR IGNORE INTO races (name) VALUES('');
+INSERT OR IGNORE INTO races (name) VALUES('');
+INSERT OR IGNORE INTO races (name) VALUES('');
+INSERT OR IGNORE INTO races (name) VALUES('');
+INSERT OR IGNORE INTO races (name) VALUES('');
+INSERT OR IGNORE INTO races (name) VALUES('');
+INSERT OR IGNORE INTO races (name) VALUES('');
+INSERT OR IGNORE INTO races (name) VALUES('');
+INSERT OR IGNORE INTO races (name) VALUES('');
+INSERT OR IGNORE INTO races (name) VALUES('');
+INSERT OR IGNORE INTO races (name) VALUES('');
+INSERT OR IGNORE INTO races (name) VALUES('');
+INSERT OR IGNORE INTO races (name) VALUES('');
+INSERT OR IGNORE INTO races (name) VALUES('');
+INSERT OR IGNORE INTO races (name) VALUES('');
+INSERT OR IGNORE INTO races (name) VALUES('');

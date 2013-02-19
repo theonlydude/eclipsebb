@@ -15,7 +15,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-from util import enum
+from engine.util import enum
 
 # all this types are stored inside the Game State
 
@@ -91,8 +91,8 @@ class SettlerShip:
     def __init__(self, id_):
         pass
 
-game_phases = enum(INIT, TURN, END)
-turn_phases = enum(ACTION, BATTLE, UPKEEP, CLEANUP)
+game_phases = enum(INIT=0, TURN=1, END=2)
+turn_phases = enum(ACTION=0, BATTLE=1, UPKEEP=2, CLEANUP=3)
 class GameState:
     """
     the state of the game, to be sent to the client with json:
@@ -103,10 +103,8 @@ class GameState:
      -extensions flags
      -researchs
     """
-    def __init__(self, id_):
-        # uniq id for the state
-        self.id_ = id_
-
+    def __init__(self, num_players):
+        """ for now store only players, to be filled with the rest """
         # game phase INIT
         # installation phase: only once per game (when players
         #                     choose their race)
@@ -121,12 +119,12 @@ class GameState:
 
         # game phase END
         # end of the game phase: only once per game (nothing happened)
-        self.cur_game_phase = game_phases.INIT
+        self.game_phase = game_phases.INIT
 
-        self.cur_turn_phase = None
+        self.turn_phase = None
 
         # the game is played in nine turns
-        self.cur_turn = 0
+        self.turn = 0
 
         # in a state, store only the actions to apply in order to
         # transition to the next state
@@ -139,14 +137,19 @@ class GameState:
         # store the players ids
         self.players_order = []
 
+        self.num_players = num_players
+
     def addPlayer(self, id_, name, races_wishes):
         player = Player(id_, name, races_wishes)
         self.players[player.id_] = player
 
-    def nextId(self):
-        """ every objects in a state must have an uniq id """
-        self.top_id += 1
-        return self.top_id
+    def getPlayer(self, id_):
+        return self.players[id_]
+
+#    def nextId(self):
+#        """ every objects in a state must have an uniq id """
+#        self.top_id += 1
+#        return self.top_id
 
     def exportToJson(self):
         pass
