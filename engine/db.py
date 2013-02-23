@@ -238,6 +238,7 @@ order by name;'
             cursor_priv.close()
             db.close()
 
+    @log
     def getMyGamesIds(self, player_id):
         """ return None if error """
         sql = 'SELECT game_id FROM games_players where player_id =?;'
@@ -257,11 +258,6 @@ order by name;'
             cursor.close()
             db.close()
 
-    # infos saved in the database for a player:
-    # -id: uniq id of the player (sqlite rowid)
-    # -name: name of the player (uniq)
-    # -email: email address of the player (uniq)
-    # -password: md5 sum of the password
     def getPassHash(self, id_, password):
         """ sha1 of the salted password """
         salted_pass = id_[:2] + password
@@ -282,7 +278,8 @@ order by name;'
             cursor.execute(sql, (name, email, sha1_pass, timezone))
             db.commit()
         except sqlite3.IntegrityError:
-            logging.debug("Player ({}, {}) already registered".format(name, email))
+            logging.debug("Player ({}, {}) already registered".format(name,
+                                                                      email))
             return None
         except Exception:
             logging.exception("DBException while creating player with \
@@ -292,6 +289,46 @@ name {}".format(name))
             # the id primary key = rowid in sqlite3
             playerId = cursor.lastrowid
             return playerId
+        finally:
+            cursor.close()
+            db.close()
+
+    @log
+    def updatePlayer(self, player, to_update):
+        """
+        update player fields.
+        to_update is a dict containing the fields to update with the new values.
+        return None if the email is already used by another player.
+        """
+        if 'email' not in to_update:
+            to_update['email'] = player.email
+        if 'timezone' not in to_update:
+            to_update['timezone'] = player.timezone
+        if 'password' not in to_update:
+            to_update['password'] = player.password
+        else:
+            to_update['password'] = self.getPassHash(to_update['email'],
+                                                     to_update['password'])
+        sql = 'update players set email=?, timezone=?, password=? \
+where id = ?;'
+        try:
+            db = self.connect()
+            cursor = db.cursor()
+            cursor.execute(sql, (to_update['email'],
+                                 to_update['timezone'],
+                                 to_update['password'],
+                                 player.id_))
+            db.commit()
+        except sqlite3.IntegrityError:
+            logging.debug("Email ({}, {}) already \
+registered".format(player.name, player.email))
+            return None
+        except Exception:
+            logging.exception("DBException while updating player with \
+name {}".format(player.name))
+            return None
+        else:
+            return True
         finally:
             cursor.close()
             db.close()
@@ -328,7 +365,8 @@ email {}".format(email))
         """"
         get player info in database, then instanciate a player
         """
-        sql = 'select id, name, email, timezone from players where id = ?'
+        sql = 'select id, name, email, timezone, password from players \
+where id = ?'
         try:
             db = self.connect()
             cursor = db.cursor()

@@ -21,7 +21,7 @@ from engine.data_types import GameState
 
 class Player:
     def __init__(self, *args):
-        self.id_, self.name, self.email, self.timezone = args
+        self.id_, self.name, self.email, self.timezone, self.password = args
 
 class Timezones:
     def __init__(self, timezones):

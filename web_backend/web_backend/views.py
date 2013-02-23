@@ -34,11 +34,11 @@ def already_logged(request):
     return HTTPFound(location=request.route_url('home'))
 
 def db_read_error(request, msg):
-    request.session.flash('Error reading {} from database'.format(msg))
+    request.session.flash('Error reading {} from database.'.format(msg))
     return HTTPFound(location=request.route_url('home'))
 
 def db_write_error(request, msg):
-    request.session.flash('Error writing {} in database'.format(msg))
+    request.session.flash('Error writing {} in database.'.format(msg))
     return HTTPFound(location=request.route_url('home'))
 
 # functions to access values in POST
@@ -85,7 +85,7 @@ def view_create_game(request):
                 extensions[name] = id_
 
         if not game_name or not num_players or not level:
-            request.session.flash("Enter game's name, #players and level")
+            request.session.flash("Enter game's name, #players and level.")
         else:
             passwd_checked = True
             if private == True:
@@ -100,7 +100,7 @@ def view_create_game(request):
                 if game_id is None:
                     db_write_error(request, 'game')
                 else:
-                    request.session.flash('Game successfuly create.')
+                    request.session.flash('Game successfuly created.')
                     return HTTPFound(location=request.route_url('home'))
 
     player = gm.getPlayer(request.session['player_id'])
@@ -197,6 +197,8 @@ def view_register(request):
     if is_auth(request):
         return already_logged(request)
 
+    gm = request.registry.settings['gm']
+
     if request.method == 'POST':
         name = get_post_str(request, 'name')
         email = get_post_str(request, 'email')
@@ -209,12 +211,60 @@ def view_register(request):
             if password != password2:
                 request.session.flash('Passwords not identical.')
             else:
-                gm = request.registry.settings['gm']
                 if gm.DB.createPlayer(name, email, password, tz):
-                    request.session.flash('User successfuly created.')
+                    request.session.flash('Player successfuly created.')
                     return HTTPFound(location=request.route_url('home'))
                 else:
                     request.session.flash('Already registered name or email.')
 
-    gm = request.registry.settings['gm']
     return {'timezones': gm.timezones}
+
+@view_config(route_name='editprofile', renderer='editprofile.mako')
+def view_editprofile(request):
+    if not is_auth(request):
+        return {'auth': False}
+
+    gm = request.registry.settings['gm']
+    player = gm.getPlayer(request.session['player_id'])
+
+    if request.method == 'POST':
+        email = get_post_str(request, 'email')
+        password = get_post_str(request, 'password')
+        password2 = get_post_str(request, 'password2')
+        timezone = get_post_str(request, 'timezone')
+
+        to_update = {}
+
+        if email != player.email:
+            to_update['email'] = email
+
+        if password and password2:
+            if password != password2:
+                request.session.flash('Passwords not identical.')
+                return {'auth': True,
+                        'player': player,
+                        'timezone': gm.timezone}
+            else:
+                to_update['password'] = password
+
+        if timezone != player.timezone:
+            to_update['timezone'] = timezone
+
+        if len(to_update) == 0:
+            request.session.flash('Nothing to update.')
+        else:
+            if gm.DB.updatePlayer(player, to_update):
+                request.session.flash('Player successfuly updated.')
+                # update player in gm
+                if not gm.loadPlayer(player.id_):
+                    logging.error("Can't reload player {} from \
+database".format(player.id_))
+                    return db_read_error(request, 'player')
+                else:
+                    return HTTPFound(location=request.route_url('home'))
+            else:
+                return db_write_error(request, 'player')
+
+    return {'auth': True,
+            'player': player,
+            'timezones': gm.timezones}
