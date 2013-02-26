@@ -21,11 +21,20 @@ import hashlib
 import logging
 import pickle
 from engine.web_types import Player, Timezones, Game
-from engine.util import log
+from engine.util import log, enum
+
+db_status = enum(OK=0, ERROR=1, CONST_ERROR=2)
 
 class DBInterface:
     """
     Handles the connections to the database
+
+    All methods return a tuple: (db_status, param)
+    enum db_status:
+     OK: if no error
+     ERROR: if database write/read error
+     CONST_ERROR: if database constraints error
+    param: optionnal returned param depending on method
     """
     def __init__(self):
         """
@@ -90,9 +99,9 @@ extension_id) values (?, ?);"
         except Exception:
             logging.exception("Can't create game {!r} by \
 {}".format(game.name, game.creator_id))
-            return None
+            return (db_status.ERROR, None)
         else:
-            return game_id
+            return (db_status.OK, game_id)
         finally:
             cursor.close()
             db.close()
@@ -101,7 +110,6 @@ extension_id) values (?, ?);"
     def saveGame(self, game):
         """
         update the content of the game row.
-        return None if error, True if success
         """
         sql = "update games set started=?, ended=?, cur_state=?, \
 last_play=?, where id = ?"
@@ -114,9 +122,9 @@ last_play=?, where id = ?"
             db .commit()
         except Exception:
             logging.exception()
-            return None
+            return (db_status.ERROR, None)
         else:
-            return True
+            return (db_status.OK, None)
         finally:
             cursor.close()
             db.close()
@@ -137,13 +145,13 @@ last_play=?, where id = ?"
         except Exception:
             logging.exception("DBException while loading game with \
 id {}".format(game_id))
-            return None
+            return (db_status.ERROR, None)
         else:
             game_params = cursor.fetchone()
             if game_params is None:
-                return None
+                return (db_status.ERROR, None)
             game = Game.fromDB(**game_params)
-            return game
+            return (db_status.OK, game)
         finally:
             cursor.close()
             db.close()
@@ -159,11 +167,11 @@ id {}".format(game_id))
         except Exception:
             logging.exception("DBException while getting players for game \
 with id {}".format(game_id))
-            return None
+            return (db_status.ERROR, None)
         else:
             players_ids = cursor.fetchall()
             players_ids = [id_[0] for id_ in players_ids]
-            return players_ids
+            return (db_status.OK, players_ids)
         finally:
             cursor.close()
             db.close()
@@ -180,11 +188,11 @@ extensions e where g.extension_id = e.id and g.game_id = ?;"
         except Exception:
             logging.exception("DBException while getting extensions for game\
  with id {}".format(game_id))
-            return None
+            return (db_status.ERROR, None)
         else:
             ext_ids_names = cursor.fetchall()
             ext_ids_names = dict(ext_ids_names)
-            return ext_ids_names
+            return (db_status.OK, ext_ids_names)
         finally:
             cursor.close()
             db.close()
@@ -200,11 +208,11 @@ extensions e where g.extension_id = e.id and g.game_id = ?;"
         except Exception:
             logging.exception("DBException while getting states for game\
  with id {}".format(game_id))
-            return None
+            return (db_status.ERROR, None)
         else:
             states_ids = cursor.fetchall()
             states_ids = [id_[0] for id_ in states_ids]
-            return states_ids
+            return (db_status.OK, states_ids)
         finally:
             cursor.close()
             db.close()
@@ -226,13 +234,13 @@ order by name;'
             cursor_priv.execute(sql_priv)
         except Exception:
             logging.exception("DBException while fetching pub/priv games")
-            return (None, None)
+            return (db_status.ERROR, None, None)
         else:
             pub_ids = cursor_pub.fetchall()
             pub_ids = [id_[0] for id_ in pub_ids]
             priv_ids = cursor_priv.fetchall()
             priv_ids = [id_[0] for id_ in priv_ids]
-            return (pub_ids, priv_ids)
+            return (db_status.OK, pub_ids, priv_ids)
         finally:
             cursor_pub.close()
             cursor_priv.close()
@@ -249,11 +257,11 @@ order by name;'
         except Exception:
             logging.exception("DBException while fetching games for player \
 {}".format(player_id))
-            return None
+            return (db_status.ERROR, None)
         else:
             game_ids = cursor.fetchall()
             game_ids = [id_[0] for id_ in game_ids]
-            return game_ids
+            return (db_status.OK, game_ids)
         finally:
             cursor.close()
             db.close()
@@ -268,7 +276,6 @@ order by name;'
         """
         register new player in database.
         return playerId
-        return None if a player with same email or name already exists
         """
         sha1_pass = self.getPassHash(email, password)
         sql = "INSERT INTO players VALUES (NULL, ?, ?, ?, ?)"
@@ -280,15 +287,15 @@ order by name;'
         except sqlite3.IntegrityError:
             logging.debug("Player ({}, {}) already registered".format(name,
                                                                       email))
-            return None
+            return (db_status.CONST_ERROR, None)
         except Exception:
             logging.exception("DBException while creating player with \
 name {}".format(name))
-            return None
+            return (db_status.ERROR, None)
         else:
             # the id primary key = rowid in sqlite3
             playerId = cursor.lastrowid
-            return playerId
+            return (db_status.OK, playerId)
         finally:
             cursor.close()
             db.close()
@@ -298,7 +305,6 @@ name {}".format(name))
         """
         update player fields.
         to_update is a dict containing the fields to update with the new values.
-        return None if the email is already used by another player.
         """
         if 'email' not in to_update:
             to_update['email'] = player.email
@@ -322,13 +328,13 @@ where id = ?;'
         except sqlite3.IntegrityError:
             logging.debug("Email ({}, {}) already \
 registered".format(player.name, player.email))
-            return None
+            return (db_status.CONST_ERROR, None)
         except Exception:
             logging.exception("DBException while updating player with \
 name {}".format(player.name))
-            return None
+            return (db_status.ERROR, None)
         else:
-            return True
+            return (db_status.OK, None)
         finally:
             cursor.close()
             db.close()
@@ -348,14 +354,14 @@ name {}".format(player.name))
         except Exception:
             logging.exception("DBException while auth player with \
 email {}".format(email))
-            return None
+            return (db_status.ERROR, None)
         else:
             result = cursor.fetchone()
             if result is None:
-                return None
+                return (db_status.CONST_ERROR, None)
             else:
                 player_id = result[0]
-                return player_id
+                return (db_status.OK, player_id)
         finally:
             cursor.close()
             db.close()
@@ -374,13 +380,15 @@ where id = ?'
         except Exception:
             logging.exception("DBException while loading player with \
 id {}".format(player_id))
-            return None
+            return (db_status.ERROR, None)
         else:
             result = cursor.fetchone()
             if result is None:
-                return None
+                logging.warning("No data found for player with id \
+{}".format(player_id))
+                return (db_status.ERROR, None)
             else:
-                return Player(*result)
+                return (db_status.OK, Player(*result))
         finally:
             cursor.close()
             db.close()
@@ -399,10 +407,9 @@ id {}".format(player_id))
             cursor.execute(sql)
         except Exception:
             logging.exception("DBException while fetching players")
-            return None
+            return (db_status.ERROR, None)
         else:
-            result = cursor.fetchall()
-            return result
+            return (db_status.OK, cursor.fetchall())
         finally:
             cursor.close()
             db.close()
@@ -417,10 +424,10 @@ id {}".format(player_id))
             cursor.execute(sql)
         except Exception:
             logging.exception("DBException while fetching timezones")
-            return None
+            return (db_status.ERROR, None)
         else:
             tz = cursor.fetchall()
-            return Timezones(tz)
+            return (db_status.OK, Timezones(tz))
         finally:
             cursor.close()
             db.close()
@@ -445,10 +452,10 @@ id {}".format(player_id))
         except Exception:
             logging.exception("DBException while saving state for \
 game {}".format(game_id))
-            return None
+            return (db_status.ERROR, None)
         else:
             state_id = cursor.lastrowid
-            return state_id
+            return (db_status.OK, state_id)
         finally:
             cursor.close()
             db.close()
@@ -464,10 +471,10 @@ game {}".format(game_id))
         except Exception:
             logging.exception("DBException while loading state \
 {}".format(state_id))
-            return None
+            return (db_status.ERROR, None)
         else:
             pic_state = cursor.fetchone()
-            return pickle.loads(pic_state)
+            return (db_status.OK, pickle.loads(pic_state))
         finally:
             cursor.close()
             db.close()
@@ -482,10 +489,9 @@ game {}".format(game_id))
             cursor.execute(sql)
         except Exception:
             logging.exception("DBException while fetching extensions")
-            return None
+            return (db_status.ERROR, None)
         else:
-            result = cursor.fetchall()
-            return result
+            return (db_status.OK, cursor.fetchall())
         finally:
             cursor.close()
             db.close()

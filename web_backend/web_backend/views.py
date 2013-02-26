@@ -34,11 +34,11 @@ def already_logged(request):
     return HTTPFound(location=request.route_url('home'))
 
 def db_read_error(request, msg):
-    request.session.flash('Error reading {} from database.'.format(msg))
+    request.session.flash('Ooops... Error reading {} from database.'.format(msg))
     return HTTPFound(location=request.route_url('home'))
 
 def db_write_error(request, msg):
-    request.session.flash('Error writing {} in database.'.format(msg))
+    request.session.flash('Ooops... Error writing {} in database.'.format(msg))
     return HTTPFound(location=request.route_url('home'))
 
 # functions to access values in POST
@@ -94,17 +94,17 @@ def view_create_game(request):
                     passwd_checked = False
             
             if passwd_checked == True:
-                game_id = gm.createGame(creator_id, game_name, level,
-                                        private, password, num_players,
-                                        players_ids, extensions)
-                if game_id is None:
+                status = gm.createGame(creator_id, game_name, level,
+                                       private, password, num_players,
+                                       players_ids, extensions)
+                if status == False:
                     db_write_error(request, 'game')
                 else:
                     request.session.flash('Game successfuly created.')
                     return HTTPFound(location=request.route_url('home'))
 
     player = gm.getPlayer(request.session['player_id'])
-    players_infos = gm.DB.getPlayersInfos()
+    players_infos = gm.getPlayersInfos()
 
     if players_infos is None:
         return db_read_error(request, 'players infos')
@@ -120,9 +120,9 @@ def view_mygames(request):
         return {'auth': False}
 
     gm =  request.registry.settings['gm']
-    my_games = gm.getMyGames(request.session['player_id'])
+    (db_ok, my_games) = gm.getMyGames(request.session['player_id'])
 
-    if my_games is None:
+    if db_ok is False:
         return db_read_error(request, 'games')
 
     return {'auth': True,
@@ -134,9 +134,9 @@ def view_joingame(request):
         return {'auth': False}
 
     gm =  request.registry.settings['gm']
-    pub_games, priv_games = gm.getPubPrivGames()
+    (db_ok, pub_games, priv_games) = gm.getPubPrivGames()
 
-    if pub_games is None or priv_games is None:
+    if db_ok == False:
         return db_read_error(request, 'games')
 
     return {'auth': True,
@@ -158,8 +158,8 @@ def view_login(request):
         password = get_post_str(request, 'password')
         if email and password:
             gm = request.registry.settings['gm']
-            player_id = gm.DB.authPlayer(email, password)
-            if player_id is not None:
+            (db_ok, auth_ok, player_id) = gm.authPlayer(email, password)
+            if db_ok == True and auth_ok == True:
                 # load player
                 if gm.loadPlayer(player_id) is not None:
                     # update session
@@ -170,8 +170,10 @@ def view_login(request):
                     logging.error("Can't load player {} from \
 database".format(player_id))
                     return db_read_error(request, 'player')
-            else:
+            elif db_ok == True and auth_ok == False:
                 request.session.flash('Unknown email or password.')
+            else:
+                return db_read_error(request, 'player authentification')
         else:
             request.session.flash('Enter both email and password.')
 
@@ -211,11 +213,14 @@ def view_register(request):
             if password != password2:
                 request.session.flash('Passwords not identical.')
             else:
-                if gm.DB.createPlayer(name, email, password, tz):
+                (db_ok, dup_ok, id_) = gm.createPlayer(name, email, password, tz)
+                if db_ok == True and dup_ok == True:
                     request.session.flash('Player successfuly created.')
                     return HTTPFound(location=request.route_url('home'))
-                else:
+                elif db_ok == True and dup_ok == False:
                     request.session.flash('Already registered name or email.')
+                else:
+                    return db_write_error(request, 'player')
 
     return {'timezones': gm.timezones}
 
@@ -253,7 +258,8 @@ def view_editprofile(request):
         if len(to_update) == 0:
             request.session.flash('Nothing to update.')
         else:
-            if gm.DB.updatePlayer(player, to_update):
+            (db_ok, upd_ok) = gm.updatePlayer(player, to_update)
+            if db_ok == True and upd_ok == True:
                 request.session.flash('Player successfuly updated.')
                 # update player in gm
                 if not gm.loadPlayer(player.id_):
@@ -262,6 +268,8 @@ database".format(player.id_))
                     return db_read_error(request, 'player')
                 else:
                     return HTTPFound(location=request.route_url('home'))
+            elif db_ok == True and upd_ok == False:
+                request.session.flash('Email already in use.')
             else:
                 return db_write_error(request, 'player')
 

@@ -15,11 +15,11 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-import logging
+import logging, sys
 from os.path import expanduser, exists, join
 from os import makedirs
 
-from engine.db import DBInterface
+from engine.db import DBInterface, db_status
 from engine.web_types import Game
 
 from engine.util import log
@@ -71,8 +71,11 @@ class GamesManager:
 
         self.DB = DBInterface()
 
-        self.ext_infos = self.DB.getExtensionsInfos()
-        self.timezones = self.DB.getTZ()
+        (status_ext, self.ext_infos) = self.DB.getExtensionsInfos()
+        (status_tz, self.timezones) = self.DB.getTZ()
+        # if a database error occurs so early, just quit
+        if status_ext != db_status.OK or status_tz != db_status.OK:
+            sys.exit()
 
     def debug(self, msg):
         """ called from mako templates to log stuffs """
@@ -83,42 +86,43 @@ class GamesManager:
                    num_players, players, extensions):
         """
         Instanciate a new game
-        return game_id if success, None otherwise
+        return True if success, False otherwise
         """
         game = Game(creator_id, name, level, private, password,
                     num_players, extensions)
 
-        game_id = self.DB.createGame(game, players)
+        (status, game_id) = self.DB.createGame(game, players)
 
-        if game_id is None:
+        if status != db_status.OK:
             logging.error("Error inserting game {!r} by {} in \
 database.".format(name, creator_id))
-            return None
+            return False
 
         logging.info("Game {!r} successfully created".format(name))
 
         game.id_ = game_id
         self.games[game_id] = game
-        return game_id
+        return True
         
     @log
     def saveGame(self, game_id):
         """ save a game to the database """
-        self.DB.saveGame(self.games[game_id])
+        (status, dummy) = self.DB.saveGame(self.games[game_id])
+        return (status == db_status.OK)
 
     @log
     def loadGame(self, game_id):
         """ load a game from the database """
         if game_id not in self.games:
             # load game
-            game = self.DB.loadGame(game_id)
-            if game is None:
+            (status, game) = self.DB.loadGame(game_id)
+            if status != db_status.OK:
                 logging.error("Can't load game with id {}".format(game_id))
                 return None
 
             # load players
-            players_ids = self.DB.getGamePlayersIds(game_id)
-            if players_ids is None:
+            (status, players_ids) = self.DB.getGamePlayersIds(game_id)
+            if status != db_status.OK:
                 logging.error("Can't get players ids for game with id \
 {}".format(game_id))
                 return None
@@ -131,16 +135,16 @@ database.".format(name, creator_id))
                     return None
 
             # load extensions
-            ext = self.DB.getGameExt(game_id)
-            if ext is None:
+            (status, ext) = self.DB.getGameExt(game_id)
+            if status != db_status.OK:
                 logging.error("Can't load extensions for game with id \
 {}".format(game_id))
                 return None
             game.extensions = ext
 
             # load states
-            states_ids = self.DB.getGameStatesIds(game_id)
-            if states_ids is None:
+            (status, states_ids) = self.DB.getGameStatesIds(game_id)
+            if status != db_status.OK:
                 logging.error("Can't load states for game with id \
 {}".format(game_id))
                 return None
@@ -165,15 +169,15 @@ database.".format(name, creator_id))
     def getMyGames(self, player_id):
         """ return the games the player is currently playing
         even the non started ones """
-        my_games_ids = self.DB.getMyGamesIds(player_id)
-        if my_games_ids is None:
-            return None
+        status, my_games_ids = self.DB.getMyGamesIds(player_id)
+        if status != db_status.OK:
+            return (False, None)
 
         my_games = [self.getGame(id_) for id_ in my_games_ids]
         if None in my_games:
-            return None
+            return (False, None)
 
-        return my_games
+        return (True, my_games)
 
     @log
     def getEndedGames(self, player_id):
@@ -182,26 +186,29 @@ database.".format(name, creator_id))
 
     @log
     def getPubPrivGames(self):
-        """ """
-        pub_ids, priv_ids = self.DB.getPubPrivGamesIds()
+        """ return (db_ok, pubs, privs) """
+        status, pub_ids, priv_ids = self.DB.getPubPrivGamesIds()
+        if status == db_status.ERROR:
+            return (False, None, None)
+
         if pub_ids is None or priv_ids is None:
-            return (None, None)
+            return (False, None, None)
 
         pub_games = [self.getGame(id_) for id_ in pub_ids]
         if None in pub_games:
-            return (None, None)
+            return (False, None, None)
 
         priv_games = [self.getGame(id_) for id_ in priv_ids]
         if None in priv_games:
-            return (None, None)
+            return (False, None, None)
 
-        return (pub_games, priv_games)
+        return (True, pub_games, priv_games)
 
     @log
     def loadPlayer(self, player_id):
         """ load a player from the database """
-        player = self.DB.loadPlayer(player_id)
-        if player is None:
+        (status, player) = self.DB.loadPlayer(player_id)
+        if status != db_status.OK:
             return None
         else:
             self.web_players[player_id] = player
@@ -214,3 +221,44 @@ database.".format(name, creator_id))
                 return None
 
         return self.web_players[player_id]
+
+    @log
+    def getPlayersInfos(self):
+        (status, players_infos) = self.DB.getPlayersInfos()
+        if status != db_status.OK:
+            return None
+        else:
+            return players_infos
+
+    @log
+    def authPlayer(self, email, password):
+        """ return (db_ok, auth_ok, player_id) """
+        (status, id_) = self.DB.authPlayer(email, password)
+        if status == db_status.OK:
+            return (True, True, id_)
+        elif status == db_status.CONST_ERROR:
+            return (True, False, None)
+        else:
+            return (False, None, None)
+
+    @log
+    def createPlayer(self, name, email, password, tz):
+        """ return (db_ok, dup_ok, player_id) """
+        (status, id_) = self.DB.createPlayer(name, email, password, tz)
+        if status == db_status.OK:
+            return (True, True, id_)
+        elif status == db_status.CONST_ERROR:
+            return (True, False, None)
+        else:
+            return (False, None, None)
+
+    @log
+    def updatePlayer(self, player, to_update):
+        """ return (db_ok, upd_ok) """
+        (status, dummy) = self.DB.updatePlayer(player, to_update)
+        if status == db_status.OK:
+            return (True, True)
+        elif status == db_status.CONST_ERROR:
+            return (True, False)
+        else:
+            return(False, None)
