@@ -22,20 +22,18 @@ from pyramid.httpexceptions import HTTPFound
 
 class ViewTests(unittest.TestCase):
     def setUp(self):
-        #import web_backend
-        #self.config = testing.setUp()
-        #self.config.include('web_backend')
-
+#    def __init__(self, *args, **kargs):
+#        super(ViewTests, self).__init__(*args, **kargs)
         from web_backend import main
         from webtest import TestApp
+        from paste.deploy.loadwsgi import appconfig
 
-        # TODO::get settings
-        app = main({})
+        # get settings
+        settings = appconfig('config:development.ini', 'main', relative_to='.')
+
+        # instanciate app
+        app = main({}, **settings)
         self.testapp = TestApp(app)
-
-#    def tearDown(self):
-        #testing.tearDown()
-
 
     def test_view_home(self):
         from .views import view_home
@@ -47,7 +45,7 @@ class ViewTests(unittest.TestCase):
         from .views import view_login
 
         res = self.testapp.get('/', status=200)
-        
+        print(res)
 #        request = testing.DummyRequest()
 #        response = view_login(request)
 #        self.assertEqual(response.status, '302 Found')

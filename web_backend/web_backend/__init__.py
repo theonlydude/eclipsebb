@@ -21,9 +21,6 @@ import pyramid
 from engine.game_manager import GamesManager
 
 def includeme(config):
-    # to populate threadlocal
-    config.begin()
-
     config.add_static_view('static', 'static', cache_max_age=3600)
     config.add_route('home', '/')
     config.add_route('login', '/login')
@@ -34,26 +31,20 @@ def includeme(config):
     config.add_route('creategame', '/creategame')
     config.add_route('editprofile', '/editprofile')
 
-    # we have to do that here instead of in main because main is no called from
-    # tests.py
-    settings = pyramid.threadlocal.get_current_registry().settings
-    
+def main(global_config, **settings):
+    """ This function returns a Pyramid WSGI application.
+    """
     # instantiate the games manager and add it to the settings so that it
     # can be accessed from the views
     gm = GamesManager()
     settings['gm'] = gm
 
+    config = Configurator(settings=settings)
+    config.include('web_backend.includeme')
+
     config.include('pyramid_beaker')
     session_factory = session_factory_from_settings(settings)
     config.set_session_factory(session_factory)
 
-def main(global_config, **settings):
-    """ This function returns a Pyramid WSGI application.
-    """
-
-    print(settings)
-
-    config = Configurator(settings=settings)
-    config.include('web_backend.includeme')
     config.scan()
     return config.make_wsgi_app()
