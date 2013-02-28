@@ -19,9 +19,8 @@ import logging
 
 ind_level=0
 ind_str=' '
-
 def log(fun):
-    """ a simple decorator do display functions calls with params/return """
+    """ a simple decorator to display functions calls with params/return """
     def logger(*args, **kargs):
         global ind_level
         global ind_str

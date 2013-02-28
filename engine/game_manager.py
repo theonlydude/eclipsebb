@@ -187,7 +187,7 @@ database.".format(name, creator_id))
     @log
     def getPubPrivGames(self):
         """ return (db_ok, pubs, privs) """
-        status, pub_ids, priv_ids = self.DB.getPubPrivGamesIds()
+        status, (pub_ids, priv_ids) = self.DB.getPubPrivGamesIds()
         if status == db_status.ERROR:
             return (False, None, None)
 

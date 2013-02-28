@@ -23,7 +23,39 @@ import pickle
 from engine.web_types import Player, Timezones, Game
 from engine.util import log, enum
 
+# status returned by all db methods
 db_status = enum(OK=0, ERROR=1, CONST_ERROR=2)
+
+# allow some queries to fail for unittest
+_fail=False
+_fail_filter=None
+
+def change_db_fail(activate, filter_=None):
+    global _fail
+    global _fail_filter
+    _fail = activate
+    _fail_filter = filter_
+
+def fail(fun):
+    """
+    a decorator making db calls to return read/write failure
+    can filter on function name
+    """
+    def failer(*args, **kargs):
+        global _fail
+        global _fail_filter
+
+#        if _fail_filter is not None:
+#            print("filter=[{}]".format(_fail_filter))
+#            print("fun=[{}]".format(fun.__name__))
+
+        if _fail is True and (_fail_filter is None
+                              or fun.__name__ == _fail_filter):
+            return (db_status.ERROR, None)
+        else:
+            return fun(*args, **kargs)
+
+    return failer
 
 class DBInterface:
     """
@@ -234,13 +266,13 @@ order by name;'
             cursor_priv.execute(sql_priv)
         except Exception:
             logging.exception("DBException while fetching pub/priv games")
-            return (db_status.ERROR, None, None)
+            return (db_status.ERROR, None)
         else:
             pub_ids = cursor_pub.fetchall()
             pub_ids = [id_[0] for id_ in pub_ids]
             priv_ids = cursor_priv.fetchall()
             priv_ids = [id_[0] for id_ in priv_ids]
-            return (db_status.OK, pub_ids, priv_ids)
+            return (db_status.OK, (pub_ids, priv_ids))
         finally:
             cursor_pub.close()
             cursor_priv.close()
@@ -340,6 +372,7 @@ name {}".format(player.name))
             db.close()
 
     @log
+    @fail
     def authPlayer(self, email, password):
         """
         check password with the one in database
@@ -367,6 +400,7 @@ email {}".format(email))
             db.close()
 
     @log
+    @fail
     def loadPlayer(self, player_id):
         """"
         get player info in database, then instanciate a player
