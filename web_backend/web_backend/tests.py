@@ -22,6 +22,7 @@ from pyramid.httpexceptions import HTTPFound
 
 # TODO::use custom preloaded db for tests
 # TODO::failer && logger in log...
+# TODO::normalize method/class naming convention
 
 class ViewTests(unittest.TestCase):
     def setUp(self):
@@ -41,6 +42,33 @@ class ViewTests(unittest.TestCase):
         app = main({}, **settings)
         self.testapp = TestApp(app)
 
+    def gen_test(self, route, tests_true=[], tests_false=[],
+                 post=None, follow=True):
+        """ test generator """
+        if post is not None:
+            res = self.testapp.post(route, post)
+        else:
+            res = self.testapp.get(route)
+        if follow == True:
+            self.assertEqual(res.status_int, 302)
+            res = res.follow()
+            self.assertEqual(res.status_int, 200)
+
+        for test in tests_true:
+            # debug
+            if test not in res:
+                print('tests_true')
+                print('test=[{}]'.format(test))
+                print('res=[{}]'.format(res))
+            self.assertTrue(test in res)
+        for test in tests_false:
+            # debug
+            if test in res:
+                print('tests_false')
+                print('test=[{}]'.format(test))
+                print('res=[{}]'.format(res))
+            self.assertTrue(test not in res)
+
     def test_view_home(self):
         """ test by calling the view directly """
         from .views import view_home
@@ -51,109 +79,97 @@ class ViewTests(unittest.TestCase):
     def test_view_logout(self):
         """ test by using TestApp """
         # log in sucessfully
-        res = self.testapp.post('/login', {'email': 'adri', 'password': 'adri'})
-        self.assertEqual(res.status_int, 302)
-        res = res.follow()
-        self.assertEqual(res.status_int, 200)
-        self.assertTrue('Login successful.' in res)
+        self.gen_test('/login', ['Login successful.'],
+                        post={'email': 'adri', 'password': 'adri'})
 
         # test success logout
-        res = self.testapp.post('/logout')
-        self.assertEqual(res.status_int, 302)
-        res = res.follow()
-        self.assertEqual(res.status_int, 200)
-        self.assertTrue('Logout successful.' in res)
+        self.gen_test('/logout', ['Logout successful.'])
 
         # test unsuccess logout
-        res = self.testapp.post('/logout')
-        self.assertEqual(res.status_int, 302)
-        res = res.follow()
-        self.assertEqual(res.status_int, 200)
-        self.assertTrue('Not logged in.' in res)
+        self.gen_test('/logout', ['Not logged in.'])
 
     def test_view_login(self):
         """ test by using TestApp """
         # test get page leads to home
-        res = self.testapp.get('/login')
-        self.assertEqual(res.status_int, 302)
-        res = res.follow()
-        self.assertEqual(res.status_int, 200)
-        self.assertTrue('/register' in res)
-        self.assertTrue('/login' in res)
+        self.gen_test('/login', ['/register', '/login'])
 
         # test POST empty email/password
-        res = self.testapp.post('/login', {'email': '', 'password': ''})
-        self.assertEqual(res.status_int, 302)
-        res = res.follow()
-        self.assertEqual(res.status_int, 200)
-        self.assertTrue('Enter both email and password.' in res)
+        self.gen_test('/login', ['Enter both email and password.'],
+                      post={'email': '', 'password': ''})
 
         # test POST db error
         import engine.db
         engine.db.change_db_fail(True)
-
-        res = self.testapp.post('/login', {'email': 'pets', 'password': 'pets'})
-        self.assertEqual(res.status_int, 302)
-        res = res.follow()
-        self.assertEqual(res.status_int, 200)
-        self.assertFalse('Login successful.' in res)
-        self.assertTrue('Ooops... Error reading player authentification' in res)
-        
+        self.gen_test('/login',
+                      tests_true=['Ooops... Error reading player authentification'],
+                      tests_false=['Login successful.'],
+                      post={'email': 'pets', 'password': 'pets'})
         engine.db.change_db_fail(False)
 
         # test POST wrong email/password
-        res = self.testapp.post('/login', {'email': 'adri', 'password': 'biere'})
-        self.assertEqual(res.status_int, 302)
-        res = res.follow()
-        self.assertEqual(res.status_int, 200)
-        self.assertTrue('Unknown email or password.' in res)
+        self.gen_test('/login', ['Unknown email or password.'],
+                      post={'email': 'adri', 'password': 'biere'})
 
         # test POST valid email/password - db error loading player
         import engine.db
         engine.db.change_db_fail(True, 'loadPlayer')
-
-        res = self.testapp.post('/login', {'email': 'pets', 'password': 'pets'})
-        self.assertEqual(res.status_int, 302)
-        res = res.follow()
-        self.assertEqual(res.status_int, 200)
-        self.assertFalse('Login successful.' in res)
-        self.assertTrue('Ooops... Error reading player from database.' in res)
-        
+        self.gen_test('/login',
+                      ['Ooops... Error reading player from database.'],
+                      ['Login successful.'],
+                      {'email': 'pets', 'password': 'pets'})
         engine.db.change_db_fail(False)
 
         # test POST valid email/password - loading player ok
-        res = self.testapp.post('/login', {'email': 'adri', 'password': 'adri'})
-        self.assertEqual(res.status_int, 302)
-        res = res.follow()
-        self.assertEqual(res.status_int, 200)
-        self.assertTrue('Login successful.' in res)
+        self.gen_test('/login', ['Login successful.'],
+                      post={'email': 'adri', 'password': 'adri'})
 
         # test already logged
-        res = self.testapp.get('/login')
-        self.assertEqual(res.status_int, 302)
-        res = res.follow()
-        self.assertEqual(res.status_int, 200)
-        self.assertTrue('Already logged in as ' in res)
+        self.gen_test('/login', ['Already logged in as '])
 
     def test_view_register(self):
         """ test by using TestApp """
         # test already logged
-        # test POST valid email/password - loading player ok
-        res = self.testapp.post('/login', {'email': 'adri', 'password': 'adri'})
-        self.assertEqual(res.status_int, 302)
-        res = res.follow()
-        self.assertEqual(res.status_int, 200)
-        self.assertTrue('Login successful.' in res)
+        self.gen_test('/login', ['Login successful.'],
+                      post={'email': 'adri', 'password': 'adri'})
 
-        res = self.testapp.get('/register')
-        self.assertEqual(res.status_int, 302)
-        res = res.follow()
-        self.assertEqual(res.status_int, 200)
-        self.assertTrue('Already logged in as ' in res)
+        self.gen_test('/register', ['Already logged in as '])
 
-        res = self.testapp.post('/logout')
-        self.assertEqual(res.status_int, 302)
-        res = res.follow()
-        self.assertEqual(res.status_int, 200)
-        self.assertTrue('Logout successful.' in res)
-        
+        self.gen_test('/logout', ['Logout successful.'])
+
+        # test POST empty name/email
+        self.gen_test('/register',
+                      ['Enter name, email, password and timezone.'],
+                      post={'email': 'adri'}, follow=False)
+
+        # test POST password != password2
+        self.gen_test('/register',
+                      ['Passwords not identical.'],
+                      post={'name': 'test user', 'email': 'test@test.com',
+                            'password': 'qwerty01', 'password2': 'qwerty02',
+                            'timezone': '120'},
+                      follow=False)
+
+        # test POST duplicate name/email
+        self.gen_test('/register',
+                      ['Already registered name or email.'],
+                      post={'name': 'adri', 'email': 'test@test.com',
+                            'password': 'qwerty01', 'password2': 'qwerty01',
+                            'timezone': '120'},
+                      follow=False)
+
+        # test POST db write error
+        import engine.db
+        engine.db.change_db_fail(True)
+        self.gen_test('/register',
+                      ['Ooops... Error writing player in database.'],
+                      post={'name': 'test user', 'email': 'test@test.com',
+                            'password': 'qwerty01', 'password2': 'qwerty01',
+                            'timezone': '120'})
+        engine.db.change_db_fail(False)
+
+        # test POST creation ok
+        self.gen_test('/register',
+                      ['Player successfuly created.'],
+                      post={'name': 'test user', 'email': 'test@test.com',
+                            'password': 'qwerty01', 'password2': 'qwerty01',
+                            'timezone': '120'})

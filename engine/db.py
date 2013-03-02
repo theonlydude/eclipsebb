@@ -98,6 +98,7 @@ class DBInterface:
                                detect_types=sqlite3.PARSE_DECLTYPES)
 
     @log
+    @fail
     def createGame(self, game, players_ids):
         """ returns the game id """
         sql_game = "insert into games (name, level, private, password, \
@@ -139,6 +140,7 @@ extension_id) values (?, ?);"
             db.close()
 
     @log
+    @fail
     def saveGame(self, game):
         """
         update the content of the game row.
@@ -162,6 +164,7 @@ last_play=?, where id = ?"
             db.close()
 
     @log
+    @fail
     def loadGame(self, game_id):
         """
         returns a game object
@@ -189,6 +192,7 @@ id {}".format(game_id))
             db.close()
 
     @log
+    @fail
     def getGamePlayersIds(self, game_id):
         """ return a list of players ids """
         sql = "select player_id from games_players where game_id = ?;"
@@ -209,6 +213,7 @@ with id {}".format(game_id))
             db.close()
 
     @log
+    @fail
     def getGameExt(self, game_id):
         """ return a dict of id: name """
         sql = "select g.extension_id, e.name from games_extensions g, \
@@ -230,6 +235,7 @@ extensions e where g.extension_id = e.id and g.game_id = ?;"
             db.close()
 
     @log
+    @fail
     def getGameStatesIds(self, game_id):
         """ return a list of states ids """
         sql = "select id from state where game_id = ?;"
@@ -250,6 +256,7 @@ extensions e where g.extension_id = e.id and g.game_id = ?;"
             db.close()
 
     @log
+    @fail
     def getPubPrivGamesIds(self):
         """
         return (None, None) if error
@@ -279,6 +286,7 @@ order by name;'
             db.close()
 
     @log
+    @fail
     def getMyGamesIds(self, player_id):
         """ return None if error """
         sql = 'SELECT game_id FROM games_players where player_id =?;'
@@ -304,6 +312,7 @@ order by name;'
         return hashlib.sha1(salted_pass.encode('utf-8')).hexdigest()
 
     @log
+    @fail
     def createPlayer(self, name, email, password, timezone):
         """
         register new player in database.
@@ -333,6 +342,7 @@ name {}".format(name))
             db.close()
 
     @log
+    @fail
     def updatePlayer(self, player, to_update):
         """
         update player fields.
@@ -429,6 +439,7 @@ id {}".format(player_id))
 
 
     @log
+    @fail
     def getPlayersInfos(self):
         """
         get players infos to be displayed in the game creation page
@@ -449,6 +460,7 @@ id {}".format(player_id))
             db.close()
 
     @log
+    @fail
     def getTZ(self):
         """ return an ordered list (tzId, tzName) """
         sql = 'SELECT diff, name FROM timezones order by diff;'
@@ -467,6 +479,7 @@ id {}".format(player_id))
             db.close()
 
     @log
+    @fail
     def saveState(self, game_id, state):
         """
         infos saved in the database for a state:
@@ -495,6 +508,7 @@ game {}".format(game_id))
             db.close()
 
     @log
+    @fail
     def loadState(self, state_id):
         """ return None if error """
         sql = "select pickle from state where id = ?;"
@@ -514,6 +528,7 @@ game {}".format(game_id))
             db.close()
 
     @log
+    @fail
     def getExtensionsInfos(self):
         """ return a list (id, name, desc) """
         sql = 'SELECT id, name, desc FROM extensions;'
