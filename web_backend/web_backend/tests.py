@@ -20,7 +20,6 @@ import unittest
 from pyramid import testing
 from pyramid.httpexceptions import HTTPFound
 
-# TODO::use custom preloaded db for tests
 # TODO::failer && logger in log...
 # TODO::normalize method/class naming convention
 
@@ -42,7 +41,7 @@ class ViewTests(unittest.TestCase):
         app = main({'test_mode': True}, **settings)
         self.testapp = TestApp(app)
 
-        # to have access to gm from testapp, could be useful:
+        # INFO::to have access to gm from testapp, could be useful:
         #self.testapp.app.registry._settings['gm']
 
     def gen_test(self, route, tests_true=[], tests_false=[],
@@ -83,7 +82,7 @@ class ViewTests(unittest.TestCase):
         """ test by using TestApp """
         # log in sucessfully
         self.gen_test('/login', ['Login successful.'],
-                        post={'email': 'adri', 'password': 'adri'})
+                        post={'email': 'test@test.com', 'password': 'test'})
 
         # test success logout
         self.gen_test('/logout', ['Logout successful.'])
@@ -106,12 +105,12 @@ class ViewTests(unittest.TestCase):
         self.gen_test('/login',
                       tests_true=['Ooops... Error reading player authentification'],
                       tests_false=['Login successful.'],
-                      post={'email': 'pets', 'password': 'pets'})
+                      post={'email': 'test@test.com', 'password': 'test'})
         engine.db.change_db_fail(False)
 
         # test POST wrong email/password
         self.gen_test('/login', ['Unknown email or password.'],
-                      post={'email': 'adri', 'password': 'biere'})
+                      post={'email': 'test@test.com', 'password': 'qwerty01'})
 
         # test POST valid email/password - db error loading player
         import engine.db
@@ -119,12 +118,12 @@ class ViewTests(unittest.TestCase):
         self.gen_test('/login',
                       ['Ooops... Error reading player from database.'],
                       ['Login successful.'],
-                      {'email': 'pets', 'password': 'pets'})
+                      {'email': 'test@test.com', 'password': 'test'})
         engine.db.change_db_fail(False)
 
         # test POST valid email/password - loading player ok
         self.gen_test('/login', ['Login successful.'],
-                      post={'email': 'adri', 'password': 'adri'})
+                      post={'email': 'test@test.com', 'password': 'test'})
 
         # test already logged
         self.gen_test('/login', ['Already logged in as '])
@@ -133,7 +132,7 @@ class ViewTests(unittest.TestCase):
         """ test by using TestApp """
         # test already logged
         self.gen_test('/login', ['Login successful.'],
-                      post={'email': 'adri', 'password': 'adri'})
+                      post={'email': 'test@test.com', 'password': 'test'})
 
         self.gen_test('/register', ['Already logged in as '])
 
@@ -142,12 +141,12 @@ class ViewTests(unittest.TestCase):
         # test POST empty name/email
         self.gen_test('/register',
                       ['Enter name, email, password and timezone.'],
-                      post={'email': 'adri'}, follow=False)
+                      post={'email': 'newplayer@test.com'}, follow=False)
 
         # test POST password != password2
         self.gen_test('/register',
                       ['Passwords not identical.'],
-                      post={'name': 'test user', 'email': 'test@test.com',
+                      post={'name': 'player1', 'email': 'player1@test.com',
                             'password': 'qwerty01', 'password2': 'qwerty02',
                             'timezone': '120'},
                       follow=False)
@@ -155,7 +154,7 @@ class ViewTests(unittest.TestCase):
         # test POST duplicate name/email
         self.gen_test('/register',
                       ['Already registered name or email.'],
-                      post={'name': 'adri', 'email': 'test@test.com',
+                      post={'name': 'test player', 'email': 'test@test.com',
                             'password': 'qwerty01', 'password2': 'qwerty01',
                             'timezone': '120'},
                       follow=False)
@@ -165,7 +164,7 @@ class ViewTests(unittest.TestCase):
         engine.db.change_db_fail(True)
         self.gen_test('/register',
                       ['Ooops... Error writing player in database.'],
-                      post={'name': 'test user', 'email': 'test@test.com',
+                      post={'name': 'player1', 'email': 'player1@test.com',
                             'password': 'qwerty01', 'password2': 'qwerty01',
                             'timezone': '120'})
         engine.db.change_db_fail(False)
@@ -173,6 +172,6 @@ class ViewTests(unittest.TestCase):
         # test POST creation ok
         self.gen_test('/register',
                       ['Player successfuly created.'],
-                      post={'name': 'test user', 'email': 'test@test.com',
+                      post={'name': 'player1', 'email': 'player1@test.com',
                             'password': 'qwerty01', 'password2': 'qwerty01',
                             'timezone': '120'})
