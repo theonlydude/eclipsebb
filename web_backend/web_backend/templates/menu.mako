@@ -5,7 +5,7 @@
 
 <% 
     gm =  request.registry.settings['gm']
-    player = gm.getPlayer(request.session['player_id'])
+    player = gm.get_player(request.session['player_id'])
 %>
 
 Logged as ${player.name}<br />

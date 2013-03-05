@@ -44,8 +44,8 @@ extensions
   % for game in my_games:
 
 <%
-  web_player = gm.getPlayer(game.creator_id)
-  game_player = game.getPlayer(game.creator_id)
+  web_player = gm.get_player(game.creator_id)
+  game_player = game.get_player(game.creator_id)
 %>
 
 <tr>
@@ -72,8 +72,8 @@ ${ext} /
       % if i < len(game.players_ids):
         % if game.players_ids[i] != game.creator_id:
 <%
-          web_player = gm.getPlayer(game.players_ids[i])
-          game_player = game.getPlayer(game.players_ids[i])
+          web_player = gm.get_player(game.players_ids[i])
+          game_player = game.get_player(game.players_ids[i])
 %>
 <tr>
 <td>${web_player.name}</td>
