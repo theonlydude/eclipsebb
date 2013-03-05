@@ -25,7 +25,7 @@ from engine.web_types import Game
 from engine.util import log
 
 # TODO::do we need it ?
-class StatesManager:
+class StatesManager(object):
     """
     store the states, accessed by their id
     """
@@ -42,7 +42,7 @@ class StatesManager:
     def add(self, state):
         pass
 
-class GamesManager:
+class GamesManager(object):
     """
     As we can have multiple games running at the same time we need an
     object to handle them.

@@ -19,17 +19,17 @@ from datetime import datetime
 from collections import OrderedDict
 from engine.data_types import GameState
 
-class Player:
+class Player(object):
     def __init__(self, *args):
         self.id_, self.name, self.email, self.timezone, self.password = args
 
-class Timezones:
+class Timezones(object):
     def __init__(self, timezones):
         """ get [(-2, 'blabla'), (-1, 'blibli') ] """
         self.list_tz = timezones
         self.dict_tz = OrderedDict(timezones)
 
-class Game:
+class Game(object):
     """
     The base game offers functions to query the game state, to apply
     player actions and to export a game state in json.

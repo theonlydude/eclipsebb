@@ -20,7 +20,6 @@ import unittest
 from pyramid import testing
 from pyramid.httpexceptions import HTTPFound
 
-# TODO::failer && logger in log...
 # TODO::normalize method/class naming convention
 
 class ViewTests(unittest.TestCase):
@@ -51,24 +50,24 @@ class ViewTests(unittest.TestCase):
             res = self.testapp.post(route, post)
         else:
             res = self.testapp.get(route)
-        if follow == True:
+        if follow:
             self.assertEqual(res.status_int, 302)
             res = res.follow()
             self.assertEqual(res.status_int, 200)
 
         for test in tests_true:
             # debug
-            if test not in res:
-                print('tests_true')
-                print('test=[{}]'.format(test))
-                print('res=[{}]'.format(res))
+#            if test not in res:
+#                print('tests_true')
+#                print('test=[{}]'.format(test))
+#                print('res=[{}]'.format(res))
             self.assertTrue(test in res)
         for test in tests_false:
             # debug
-            if test in res:
-                print('tests_false')
-                print('test=[{}]'.format(test))
-                print('res=[{}]'.format(res))
+#            if test in res:
+#                print('tests_false')
+#                print('test=[{}]'.format(test))
+#                print('res=[{}]'.format(res))
             self.assertTrue(test not in res)
 
     def test_view_home(self):

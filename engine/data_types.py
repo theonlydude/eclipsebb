@@ -19,7 +19,7 @@ from engine.util import enum
 
 # all this types are stored inside the Game State
 
-class Player:
+class Player(object):
     def __init__(self, name):
         # the id_ is the same as the web player id_
         self.id_ = id_
@@ -35,7 +35,7 @@ class Player:
 # an hex has a number of planets, a number id, wormholes, an influence
 # token.
 # it can also be of a special type, like in the extension
-class Hex:
+class Hex(object):
     def __init__(self, id_, wormholes, planets):
         self.id_ = id_
         self.influence = None
@@ -47,13 +47,13 @@ class Hex:
         self.rotation = None
 
 # a planet 
-class Planet:
+class Planet(object):
     def __init__(self, id_, slots):
         self.id_ = id_
         self.slots = slots
 
 # a population slot
-class PopSlot:
+class PopSlot(object):
     def __init__(self, id_, type_, star):
         self.id_ = id_
         # type can be: money, science, material, grey
@@ -63,37 +63,37 @@ class PopSlot:
         # the player having a pop cube on the slot
         self.popOwner = None
 
-class Ship:
+class Ship(object):
     def __init__(self, id_):
         pass
 
-class Research:
+class Research(object):
     def __init__(self, id_):
         pass
 
-class ShipUpgrade:
+class ShipUpgrade(object):
     def __init__(self, id_):
         pass
 
-class Orbital:
+class Orbital(object):
     def __init__(self, id_):
         pass
 
-class Monolith:
+class Monolith(object):
     def __init__(self, id_):
         pass
 
-class Influence:
+class Influence(object):
     def __init__(self, id_):
         pass
 
-class SettlerShip:
+class SettlerShip(object):
     def __init__(self, id_):
         pass
 
 game_phases = enum(INIT=0, TURN=1, END=2)
 turn_phases = enum(ACTION=0, BATTLE=1, UPKEEP=2, CLEANUP=3)
-class GameState:
+class GameState(object):
     """
     the state of the game, to be sent to the client with json:
      -players
@@ -161,7 +161,7 @@ class GameState:
         pass
 
 
-class Action:
+class Action(object):
     """
     Everything a player does has to be a player action which is applied
     to a game state to generate a new state.
@@ -232,7 +232,7 @@ class Action:
 
     
 
-class Extension:
+class Extension(object):
     """ extension interface """
     def __init__(self):
         self.hooks = {}
@@ -244,23 +244,23 @@ class Extension:
         """
         pass
 
-class AncientExtension:
+class AncientExtension(object):
     def __init__(self):
         pass
 
-class NovaExtension:
+class NovaExtension(object):
     def __init__(self):
         pass
 
 
-class Sanctuary:
+class Sanctuary(object):
     def __init__(self, id_):
         pass
 
-class Development:
+class Development(object):
     def __init__(self, id_):
         pass
 
-class Wormhole:
+class Wormhole(object):
     def __init__(self, id_):
         pass

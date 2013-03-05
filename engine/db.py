@@ -46,19 +46,17 @@ def fail(fun):
         global _fail
         global _fail_filter
 
-#        if _fail_filter is not None:
-#            print("filter=[{}]".format(_fail_filter))
-#            print("fun=[{}]".format(fun.__name__))
-
-        if _fail is True and (_fail_filter is None
-                              or fun.__name__ == _fail_filter):
+        if _fail and (_fail_filter is None
+                      or fun.__name__ == _fail_filter):
             return (db_status.ERROR, None)
         else:
             return fun(*args, **kargs)
 
+    # to display an usable name in the log decorator
+    failer.__name__ = fun.__name__
     return failer
 
-class DBInterface:
+class DBInterface(object):
     """
     Handles the connections to the database
 
@@ -70,16 +68,14 @@ class DBInterface:
     param: optionnal returned param depending on method
     """
     def __init__(self, test_mode=False):
-        """
-        if the .db file doesn't exist create all the tables in the db
-        """
-        if test_mode == True:
+        """ if the .db file doesn't exist create all the tables in the db """
+        if test_mode:
             self.db_tmp_file = tempfile.NamedTemporaryFile()
             self.db_path = self.db_tmp_file.name
         else:
             self.db_path = expanduser('~/.local/share/eclipsebb/eclipse.db')
 
-        if not exists(self.db_path) or test_mode == True:
+        if not exists(self.db_path) or test_mode:
             logging.info('Creating database schema...')
 
             # schema declaration is stored in db.sql
@@ -87,7 +83,7 @@ class DBInterface:
 
             logging.info('Database schema created.')
 
-        if test_mode == True:
+        if test_mode:
             # add tests data
             self.exec_script('test_db.sql')
 
