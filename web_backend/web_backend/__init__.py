@@ -36,7 +36,11 @@ def main(global_config, **settings):
     """
     # instantiate the games manager and add it to the settings so that it
     # can be accessed from the views
-    gm = GamesManager()
+    test_mode = False
+    if 'test_mode' in global_config:
+        test_mode = True
+
+    gm = GamesManager(test_mode)
     settings['gm'] = gm
 
     config = Configurator(settings=settings)

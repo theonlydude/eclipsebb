@@ -20,6 +20,7 @@ from os.path import expanduser, exists, dirname, abspath, join
 import hashlib
 import logging
 import pickle
+import tempfile
 from engine.web_types import Player, Timezones, Game
 from engine.util import log, enum
 
@@ -38,7 +39,7 @@ def change_db_fail(activate, filter_=None):
 
 def fail(fun):
     """
-    a decorator making db calls to return read/write failure
+    a decorator allowing db calls to return read/write failure
     can filter on function name
     """
     def failer(*args, **kargs):
@@ -68,27 +69,38 @@ class DBInterface:
      CONST_ERROR: if database constraints error
     param: optionnal returned param depending on method
     """
-    def __init__(self):
+    def __init__(self, test_mode=False):
         """
         if the .db file doesn't exist create all the tables in the db
         """
-        self.db_path = expanduser('~/.local/share/eclipsebb/eclipse.db')
-        if not exists(self.db_path):
+        if test_mode == True:
+            self.db_tmp_file = tempfile.NamedTemporaryFile()
+            self.db_path = self.db_tmp_file.name
+        else:
+            self.db_path = expanduser('~/.local/share/eclipsebb/eclipse.db')
+
+        if not exists(self.db_path) or test_mode == True:
             logging.info('Creating database schema...')
 
             # schema declaration is stored in db.sql
-            cwd = dirname(abspath(__file__))
-            sql = open(join(cwd, './db.sql'), 'r').read()
-
-            # initiate database. do not catch exceptions, we want the
-            # program to stop if we can't create the database.
-            db = self.connect()
-            db.executescript(sql)
-            db.commit()
-            db.close()
+            self.exec_script('db.sql')
 
             logging.info('Database schema created.')
 
+        if test_mode == True:
+            # add tests data
+            self.exec_script('test_db.sql')
+
+    def exec_script(self, name):
+        # script in the engine dir
+        cwd = dirname(abspath(__file__))
+        sql = open(join(cwd, name), 'r').read()
+
+        db = self.connect()
+        db.executescript(sql)
+        db.commit()
+        db.close()
+        
     def connect(self):
         """
         the detect_types param allow us to store python types directly
@@ -128,6 +140,7 @@ extension_id) values (?, ?);"
                 cursor.execute(sql_extension, (game_id, ext_id))
 
             # commit only when everything is inserted
+            # TODO::check that there's actually a transaction with sqlite3
             db.commit()
         except Exception:
             logging.exception("Can't create game {!r} by \

@@ -40,7 +40,7 @@ CREATE TABLE IF NOT EXISTS games (
     -- num players for the game
     num_players INTEGER NOT NULL,
     -- game creator id
-    creator_id INTEGER NOT NULL,
+    creator_id INTEGER NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS players (
@@ -85,9 +85,9 @@ CREATE TABLE IF NOT EXISTS state (
     FOREIGN KEY(game_id) REFERENCES games(id)
 );
 
-CREATE TABLE IF NOT EXISTS races {
+CREATE TABLE IF NOT EXISTS races (
     name TEXT PRIMARY KEY
-};
+);
 
 -- insert available extensions
 INSERT OR IGNORE INTO extensions (name, desc) VALUES('rare_technologies', 'enable rare technologies');

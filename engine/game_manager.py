@@ -51,7 +51,7 @@ class GamesManager:
     Load running games from the database (after a program stop).
     Allow to browse ended games.
     """
-    def __init__(self):
+    def __init__(self, test_mode=False):
         self.share_path = expanduser('~/.local/share/eclipsebb/')
         if not exists(self.share_path):
             makedirs(self.share_path, mode=0o755, exist_ok=True)
@@ -69,7 +69,7 @@ class GamesManager:
         # the players, accessed by their id
         self.web_players = {}
 
-        self.DB = DBInterface()
+        self.DB = DBInterface(test_mode)
 
         (status_ext, self.ext_infos) = self.DB.getExtensionsInfos()
         (status_tz, self.timezones) = self.DB.getTZ()

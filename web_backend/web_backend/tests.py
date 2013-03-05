@@ -39,8 +39,11 @@ class ViewTests(unittest.TestCase):
         settings = appconfig('config:development.ini', 'main', relative_to='.')
 
         # instanciate app
-        app = main({}, **settings)
+        app = main({'test_mode': True}, **settings)
         self.testapp = TestApp(app)
+
+        # to have access to gm from testapp, could be useful:
+        #self.testapp.app.registry._settings['gm']
 
     def gen_test(self, route, tests_true=[], tests_false=[],
                  post=None, follow=True):
