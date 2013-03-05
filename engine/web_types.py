@@ -15,8 +15,8 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-from datetime import datetime
 from collections import OrderedDict
+from datetime import datetime
 from engine.data_types import GameState
 
 class Player(object):

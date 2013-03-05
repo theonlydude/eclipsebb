@@ -15,7 +15,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-from engine.util import enum
+import engine.util
 
 # all this types are stored inside the Game State
 
@@ -91,8 +91,8 @@ class SettlerShip(object):
     def __init__(self, id_):
         pass
 
-game_phases = enum(INIT=0, TURN=1, END=2)
-turn_phases = enum(ACTION=0, BATTLE=1, UPKEEP=2, CLEANUP=3)
+game_phases = engine.util.enum(INIT=0, TURN=1, END=2)
+turn_phases = engine.util.enum(ACTION=0, BATTLE=1, UPKEEP=2, CLEANUP=3)
 class GameState(object):
     """
     the state of the game, to be sent to the client with json:

@@ -15,10 +15,11 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-from pyramid.view import view_config
-from pyramid.response import Response
-from pyramid.httpexceptions import HTTPFound
 import logging
+import pyramid
+from pyramid.httpexceptions import HTTPFound
+from pyramid.response import Response
+from pyramid.view import view_config
 
 # simple helpers
 def is_auth(request):

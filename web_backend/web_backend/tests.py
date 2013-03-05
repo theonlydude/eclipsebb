@@ -16,7 +16,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 import unittest
-
 from pyramid import testing
 from pyramid.httpexceptions import HTTPFound
 
@@ -29,9 +28,9 @@ class ViewTests(unittest.TestCase):
 # not running the tests
 #    def __init__(self, *args, **kargs):
 #        super(ViewTests, self).__init__(*args, **kargs)
-        from web_backend import main
-        from webtest import TestApp
         from paste.deploy.loadwsgi import appconfig
+        from webtest import TestApp
+        from web_backend import main
 
         # get settings
         settings = appconfig('config:development.ini', 'main', relative_to='.')
@@ -113,7 +112,7 @@ class ViewTests(unittest.TestCase):
 
         # test POST valid email/password - db error loading player
         import engine.db
-        engine.db.change_db_fail(True, 'loadPlayer')
+        engine.db.change_db_fail(True, 'load_player')
         self.gen_test('/login',
                       ['Ooops... Error reading player from database.'],
                       ['Login successful.'],

@@ -15,9 +15,9 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-from pyramid_beaker import session_factory_from_settings            
-from pyramid.config import Configurator
 import pyramid
+from pyramid.config import Configurator
+from pyramid_beaker import session_factory_from_settings            
 from engine.game_manager import GamesManager
 
 def includeme(config):
