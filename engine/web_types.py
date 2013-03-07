@@ -21,7 +21,7 @@ from engine.data_types import GameState
 
 class Player(object):
     def __init__(self, *args):
-        self.id_, self.name, self.email, self.timezone, self.password = args
+        self.id_, self.name, self.email, self.tz_id, self.password = args
 
 class Timezones(object):
     def __init__(self, timezones):
@@ -75,7 +75,7 @@ class Game(object):
         self.last_valid_state_id = None
 
     @classmethod
-    def fromDB(cls, **kargs):
+    def from_DB(cls, **kargs):
         """ constructor when game is loaded from DB """
         game = cls(kargs['creator_id'], kargs['name'], kargs['level'],
                    kargs['private'], kargs['password'],
@@ -88,29 +88,29 @@ class Game(object):
         game.last_play = kargs['last_play']
         return game
 
-    def getState(self, state_id):
+    def get_state(self, state_id):
         """ access to previous states """
         pass
 
-    def jsonStateExport(self, state_id):
+    def json_state_export(self, state_id):
         """ returns the json string of the state """
         pass
 
-    def revertToState(self, state_id):
+    def revert_to_state(self, state_id):
         """
         in case one the player action is invalid or if a player want
         to revert its last turn
         """
         pass
 
-    def getHistory(self, state_id):
+    def get_history(self, state_id):
         """
         returns a string with all the actions done since the beginning
         of the game up to the current state, in a textual form
         """
         pass
 
-    def initGame(self, players):
+    def init_game(self, players):
         """
         initalize the first game state
         """

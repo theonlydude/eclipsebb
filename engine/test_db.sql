@@ -15,6 +15,23 @@
 
 
 -- fill the db with test values
+
+-- test players
 INSERT INTO players (id, name, email, password, timezone)
 VALUES(1, 'test player', 'test@test.com',
        '74cba914888a2adcf37b871d80d83ecbb4b56712', 600);
+INSERT INTO players (id, name, email, password, timezone)
+VALUES(2, 'test player dup', 'test_dup@test.com',
+       '74cba914888a2adcf37b871d80d83ecbb4b56712', 600);
+
+-- test games
+INSERT INTO games (id, name, started, ended, level, cur_state, private,
+                   password, start_date, last_play, num_players, creator_id)
+VALUES(1, "test's game", 0, 0, 3, -1, 0, '',
+       '2006-06-06 06:06:06.666666', NULL, 3, 1);
+--INSERT INTO games (id, name, started, ended, level, cur_state, private,
+--                   password, start_date, last_play, num_players, creator_id)
+--VALUES();
+--INSERT INTO games (id, name, started, ended, level, cur_state, private,
+--                   password, start_date, last_play, num_players, creator_id)
+--VALUES();

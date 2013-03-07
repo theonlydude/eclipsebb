@@ -17,11 +17,11 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import logging
 
-ind_level=0
-ind_str=' '
+ind_level = 0
+ind_str = ' '
 def log(fun):
     """ a simple decorator to display functions calls with params/return """
-    def logger(*args, **kargs):
+    def _logger(*args, **kargs):
         global ind_level
         global ind_str
         ind_level += 1
@@ -31,7 +31,7 @@ def log(fun):
         logging.debug("{}out){} [{}]".format(ind_str*ind_level, fun, ret))
         ind_level -= 1
         return ret
-    return logger
+    return _logger
 
 # to define c-like enums
 def enum(**enums):

@@ -30,12 +30,12 @@ def already_logged(request):
     gm =  request.registry.settings['gm']
     player_id = request.session['player_id']
     player = gm.get_player(player_id)
-    msg = 'Already logged in as ' + player.name
-    request.session.flash(msg)
+    request.session.flash('Already logged in as '.format(player.name))
     return HTTPFound(location=request.route_url('home'))
 
 def db_read_error(request, msg):
-    request.session.flash('Ooops... Error reading {} from database.'.format(msg))
+    request.session.flash(('Ooops... Error reading {} '
+                           'from database.').format(msg))
     return HTTPFound(location=request.route_url('home'))
 
 def db_write_error(request, msg):
@@ -237,7 +237,7 @@ def view_editprofile(request):
         email = get_post_str(request, 'email')
         password = get_post_str(request, 'password')
         password2 = get_post_str(request, 'password2')
-        timezone = get_post_str(request, 'timezone')
+        tz_id = get_post_int(request, 'timezone')
 
         to_update = {}
 
@@ -249,12 +249,12 @@ def view_editprofile(request):
                 request.session.flash('Passwords not identical.')
                 return {'auth': True,
                         'player': player,
-                        'timezone': gm.timezone}
+                        'timezones': gm.timezones}
             else:
                 to_update['password'] = password
 
-        if timezone != player.timezone:
-            to_update['timezone'] = timezone
+        if tz_id != player.tz_id:
+            to_update['timezone'] = tz_id
 
         if len(to_update) == 0:
             request.session.flash('Nothing to update.')
@@ -263,12 +263,12 @@ def view_editprofile(request):
             if db_ok and upd_ok:
                 request.session.flash('Player successfuly updated.')
                 # update player in gm
-                if not gm.load_player(player.id_):
+                if gm.load_player(player.id_):
+                    return HTTPFound(location=request.route_url('home'))
+                else:
                     logging.error(("Can't reload player {} from "
                                    "database").format(player.id_))
                     return db_read_error(request, 'player')
-                else:
-                    return HTTPFound(location=request.route_url('home'))
             elif db_ok and not upd_ok:
                 request.session.flash('Email already in use.')
             else:

@@ -89,6 +89,10 @@ class DBInterface(object):
             # add tests data
             self._exec_script('test_db.sql')
 
+    def __del__(self):
+        if hasattr(self, '_db_tmp_file'):
+            self._db_tmp_file.close()
+
     def _exec_script(self, name):
         # script in the engine dir
         cwd = os.path.dirname(os.path.abspath(__file__))
@@ -203,7 +207,7 @@ class DBInterface(object):
             game_params = cursor.fetchone()
             if game_params is None:
                 return (DB_STATUS.ERROR, None)
-            game = Game.fromDB(**game_params)
+            game = Game.from_DB(**game_params)
             return (DB_STATUS.OK, game)
         finally:
             cursor.close()
@@ -326,7 +330,7 @@ class DBInterface(object):
 
     @engine.util.log
     @fail
-    def create_player(self, name, email, password, timezone):
+    def create_player(self, name, email, password, tz_id):
         """
         register new player in database.
         return playerId
@@ -336,7 +340,7 @@ class DBInterface(object):
         try:
             db = self._connect()
             cursor = db.cursor()
-            cursor.execute(sql, (name, email, sha1_pass, timezone))
+            cursor.execute(sql, (name, email, sha1_pass, tz_id))
             db.commit()
         except sqlite3.IntegrityError:
             logging.debug("Player ({}, {}) already registered".format(name,
@@ -364,7 +368,7 @@ class DBInterface(object):
         if 'email' not in to_update:
             to_update['email'] = player.email
         if 'timezone' not in to_update:
-            to_update['timezone'] = player.timezone
+            to_update['timezone'] = player.tz_id
         if 'password' not in to_update:
             to_update['password'] = player.password
         else:

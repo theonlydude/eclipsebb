@@ -21,11 +21,11 @@
 
   <label>Time Zone</label>
   <select name="timezone">
-    % for tzId, tzName in timezones.list_tz:
-      %if tzId == player.timezone:
-        <option value="${tzId}" selected>${tzName}</option>
+    % for tz_id, tz_name in timezones.list_tz:
+      %if tz_id == player.tz_id:
+        <option value="${tz_id}" selected>${tz_name}</option>
       %else:
-        <option value="${tzId}">${tzName}</option>
+        <option value="${tz_id}">${tz_name}</option>
       %endif
     % endfor
   </select>

@@ -29,9 +29,6 @@ class Player(object):
         # a tab of #players races whishes, first is preferred one
         self.races_wishes = races_wishes
 
-    def setRace(self, race):
-        self.race = race
-
 # an hex has a number of planets, a number id, wormholes, an influence
 # token.
 # it can also be of a special type, like in the extension
