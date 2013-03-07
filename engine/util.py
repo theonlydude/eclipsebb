@@ -18,21 +18,21 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import logging
 
 ind_level = 0
-ind_str = ' '
+IND_STR = ' '
 def log(fun):
     """ a simple decorator to display functions calls with params/return """
     def _logger(*args, **kargs):
+        """ inner function """
         global ind_level
-        global ind_str
         ind_level += 1
-        logging.debug("{}in){} [{}] [[{}]]".format(ind_str*ind_level, fun,
+        logging.debug("{}in){} [{}] [[{}]]".format(IND_STR*ind_level, fun,
                                                    args, kargs))
         ret = fun(*args, **kargs)
-        logging.debug("{}out){} [{}]".format(ind_str*ind_level, fun, ret))
+        logging.debug("{}out){} [{}]".format(IND_STR*ind_level, fun, ret))
         ind_level -= 1
         return ret
     return _logger
 
-# to define c-like enums
 def enum(**enums):
+    """ to define c-like enums """
     return type('Enum', (), enums)

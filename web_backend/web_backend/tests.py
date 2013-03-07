@@ -22,6 +22,7 @@ from pyramid.httpexceptions import HTTPFound
 # TODO::normalize method/class naming convention
 
 class ViewTests(unittest.TestCase):
+    """ functionnal tests of the views """
     def setUp(self):
 # init the web app in the constructor instead of setUp, to avoid overload.
 # currently the most time is spend by nosetest doing its stuffs,
@@ -57,17 +58,17 @@ class ViewTests(unittest.TestCase):
 
         for test in tests_true:
             # debug
-            if test not in res:
-                print('tests_true')
-                print('test=[{}]'.format(test))
-                print('res=[{}]'.format(res))
+#            if test not in res:
+#                print('tests_true')
+#                print('test=[{}]'.format(test))
+#                print('res=[{}]'.format(res))
             self.assertTrue(test in res)
         for test in tests_false:
             # debug
-            if test in res:
-                print('tests_false')
-                print('test=[{}]'.format(test))
-                print('res=[{}]'.format(res))
+#            if test in res:
+#                print('tests_false')
+#                print('test=[{}]'.format(test))
+#                print('res=[{}]'.format(res))
             self.assertTrue(test not in res)
 
     def test_view_home(self):
@@ -254,3 +255,95 @@ class ViewTests(unittest.TestCase):
                       tests_true=[('Ooops... Error reading players infos '
                                    'from database.')])
         engine.db.change_db_fail(False)
+
+        # test POST missing game_name
+        self.gen_test('/creategame',
+                      tests_true=["Enter game name, #players and level."],
+                      post={'num_players': '2',
+                            'player0': '1',
+                            'player1': '2',
+                            'level': '3',
+                            'secret_world': 'on',
+                            'alliances': 'on'},
+                      follow=False)
+
+        # test POST passwords not identical
+        self.gen_test('/creategame',
+                      tests_true=['Passwords not identical.'],
+                      post={'name': "Test game",
+                            'num_players': '2',
+                            'level': '3',
+                            'private': 'on',
+                            'password': 'qwerty01',
+                            'password2': 'qwerty02',
+                            'player0': '1',
+                            'player1': '2',
+                            'secret_world': 'on',
+                            'alliances': 'on'},
+                      follow=False)
+
+        # test POST db error
+        engine.db.change_db_fail(True)
+        self.gen_test('/creategame',
+                      tests_true=['Ooops... Error writing game in database.'],
+                      post={'name': "Test game",
+                            'num_players': '2',
+                            'level': '3',
+                            'player0': '1'})
+        engine.db.change_db_fail(False)
+
+        # test POST ok
+        self.gen_test('/creategame',
+                      tests_true=['Game successfuly created.'],
+                      post={'name': "Test game",
+                            'num_players': '2',
+                            'level': '3',
+                            'player0': '1',
+                            'secret_world': 'on',
+                            'alliances': 'on'})
+
+    def test_view_joingame(self):
+        """ test by using TestApp """
+        # test not auth, display home
+        self.gen_test('/joingame', tests_true=['New user ?'], follow=False)
+
+        # auth
+        self.gen_test('/login', tests_true=['Login successful.'],
+                      post={'email': 'test@test.com', 'password': 'test'})
+
+        # test DB not ok 
+        import engine.db
+        engine.db.change_db_fail(True)
+        self.gen_test('/joingame',
+                      tests_true=['Ooops... Error reading games from database'])
+        engine.db.change_db_fail(False)
+
+        # test display 'my test game'
+        self.gen_test('/joingame',
+                      tests_true=['my test game',
+                                  ('There is currently no private game '
+                                   'awaiting for players.')],
+                      tests_false=[('There is currently no open game awaiting '
+                                    'for players.')],
+                      follow=False)
+
+    def test_view_mygames(self):
+        """ test by using TestApp """
+        # test not auth, display home
+        self.gen_test('/mygames', tests_true=['New user ?'], follow=False)
+
+        # auth
+        self.gen_test('/login', tests_true=['Login successful.'],
+                      post={'email': 'test@test.com', 'password': 'test'})
+
+        # test DB not ok 
+        import engine.db
+        engine.db.change_db_fail(True)
+        self.gen_test('/mygames',
+                      tests_true=['Ooops... Error reading games from database'])
+        engine.db.change_db_fail(False)
+
+        # test display 'my test game'
+        self.gen_test('/mygames',
+                      tests_true=['You currently have no games in progress'],
+                      follow=False)

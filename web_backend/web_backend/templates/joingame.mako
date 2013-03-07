@@ -34,7 +34,7 @@ gm =  request.registry.settings['gm']
 
 <%
     player = gm.get_player(game.creator_id)
-    tz_desc = timezones.dict_tz[player.timezone]
+    tz_desc = timezones.dict_tz[player.tz_id]
 %>
 <td>${player.name}</td>
 <td>${tz_desc}</td>
@@ -51,7 +51,7 @@ ${ext} /
         % if game.players_ids[i] != game.creator_id:
 <%
           player = gm.get_player(game.players_ids[i])
-          tz_desc = timezones.dict_tz[player.timezone]
+          tz_desc = timezones.dict_tz[player.tz_id]
 %>
 <tr>
 <td>${player.name}</td>
@@ -99,7 +99,7 @@ ${ext} /
 
 <%
     player = gm.get_player(game.creator_id)
-    tz_desc = timezones.dict_tz[player.timezone]
+    tz_desc = timezones.dict_tz[player.tz_id]
 %>
 <td>${player.name}</td>
 <td>${tz_desc}</td>
@@ -115,7 +115,7 @@ ${ext} /
       % if i < len(game.players_ids):
 <%
         player = gm.get_player(game.players_ids[i])
-        tz_desc = timezones.dict_tz[player.timezone]
+        tz_desc = timezones.dict_tz[player.tz_id]
 %>
 <tr>
 <td>${player.name}</td>

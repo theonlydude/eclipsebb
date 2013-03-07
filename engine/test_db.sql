@@ -27,11 +27,17 @@ VALUES(2, 'test player dup', 'test_dup@test.com',
 -- test games
 INSERT INTO games (id, name, started, ended, level, cur_state, private,
                    password, start_date, last_play, num_players, creator_id)
-VALUES(1, "test's game", 0, 0, 3, -1, 0, '',
+VALUES(1, 'my test game', 0, 0, 3, -1, 0, '',
        '2006-06-06 06:06:06.666666', NULL, 3, 1);
---INSERT INTO games (id, name, started, ended, level, cur_state, private,
---                   password, start_date, last_play, num_players, creator_id)
---VALUES();
---INSERT INTO games (id, name, started, ended, level, cur_state, private,
---                   password, start_date, last_play, num_players, creator_id)
---VALUES();
+
+INSERT INTO games_players (game_id, player_id)
+VALUES(1, 1);
+INSERT INTO games_players (game_id, player_id)
+VALUES(1, 2);
+
+INSERT INTO games_extensions (game_id, extension_id)
+VALUES(1, 2);
+INSERT INTO games_extensions (game_id, extension_id)
+VALUES(1, 4);
+INSERT INTO games_extensions (game_id, extension_id)
+VALUES(1, 6);

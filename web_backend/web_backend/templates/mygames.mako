@@ -45,7 +45,7 @@ extensions
 
 <%
   web_player = gm.get_player(game.creator_id)
-  game_player = game.get_player(game.creator_id)
+  game_player = game.cur_state.get_player(game.creator_id)
 %>
 
 <tr>

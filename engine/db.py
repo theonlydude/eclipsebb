@@ -44,9 +44,6 @@ def fail(fun):
     can filter on function name
     """
     def failer(*args, **kargs):
-        global _fail
-        global _fail_filter
-
         if _fail and (_fail_filter is None
                       or fun.__name__ == _fail_filter):
             return (DB_STATUS.ERROR, None)
@@ -207,7 +204,7 @@ class DBInterface(object):
             game_params = cursor.fetchone()
             if game_params is None:
                 return (DB_STATUS.ERROR, None)
-            game = Game.from_DB(**game_params)
+            game = Game.from_db(**game_params)
             return (DB_STATUS.OK, game)
         finally:
             cursor.close()

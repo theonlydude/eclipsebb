@@ -186,10 +186,11 @@ class GamesManager(object):
     @engine.util.log
     def get_pub_priv_games(self):
         """ return (db_ok, pubs, privs) """
-        status, (pub_ids, priv_ids) = self._db.get_pub_priv_games_ids()
+        status, ids = self._db.get_pub_priv_games_ids()
         if status == DB_STATUS.ERROR:
             return (False, None, None)
 
+        pub_ids, priv_ids = ids
         if pub_ids is None or priv_ids is None:
             return (False, None, None)
 

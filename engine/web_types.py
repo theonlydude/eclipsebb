@@ -20,10 +20,16 @@ from datetime import datetime
 from engine.data_types import GameState
 
 class Player(object):
+    """ Map infos stored in database """
     def __init__(self, *args):
-        self.id_, self.name, self.email, self.tz_id, self.password = args
+        (self.id_,
+         self.name,
+         self.email,
+         self.tz_id,
+         self.password) = args
 
 class Timezones(object):
+    """ cache tz, allow easy access to tz """
     def __init__(self, timezones):
         """ get [(-2, 'blabla'), (-1, 'blibli') ] """
         self.list_tz = timezones
@@ -50,7 +56,7 @@ class Game(object):
         self.started = False
         self.ended = False
         self.level = level
-        self.cur_state = GameState(num_players)
+        self.cur_state_id = GameState(num_players)
 
         self.private = private
         self.password = password
@@ -75,7 +81,7 @@ class Game(object):
         self.last_valid_state_id = None
 
     @classmethod
-    def from_DB(cls, **kargs):
+    def from_db(cls, **kargs):
         """ constructor when game is loaded from DB """
         game = cls(kargs['creator_id'], kargs['name'], kargs['level'],
                    kargs['private'], kargs['password'],
@@ -83,7 +89,7 @@ class Game(object):
         game.id_ = kargs['id']
         game.started = kargs['started']
         game.ended = kargs['ended']
-        game.cur_state = kargs['cur_state']
+        game.cur_state_id = kargs['cur_state']
         game.start_date = kargs['start_date']
         game.last_play = kargs['last_play']
         return game

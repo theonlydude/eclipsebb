@@ -86,7 +86,7 @@ def view_create_game(request):
                 extensions[name] = id_
 
         if not game_name or not num_players or not level:
-            request.session.flash("Enter game's name, #players and level.")
+            request.session.flash("Enter game name, #players and level.")
         else:
             passwd_checked = True
             if private:
