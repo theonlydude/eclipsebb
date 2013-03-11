@@ -475,25 +475,6 @@ class DBInterface(object):
 
     @engine.util.log
     @fail
-    def get_TZ(self):
-        """ return an ordered list (tzId, tzName) """
-        sql = 'SELECT diff, name FROM timezones order by diff;'
-        try:
-            db = self._connect()
-            cursor = db.cursor()
-            cursor.execute(sql)
-        except Exception:
-            logging.exception("DBException while fetching timezones")
-            return (DB_STATUS.ERROR, None)
-        else:
-            tz = cursor.fetchall()
-            return (DB_STATUS.OK, Timezones(tz))
-        finally:
-            cursor.close()
-            db.close()
-
-    @engine.util.log
-    @fail
     def save_state(self, game_id, state):
         """
         infos saved in the database for a state:
@@ -555,6 +536,25 @@ class DBInterface(object):
             return (DB_STATUS.ERROR, None)
         else:
             return (DB_STATUS.OK, cursor.fetchall())
+        finally:
+            cursor.close()
+            db.close()
+
+    @engine.util.log
+    @fail
+    def get_timezones(self):
+        """ return an ordered list (tzId, tzName) """
+        sql = 'SELECT diff, name FROM timezones order by diff;'
+        try:
+            db = self._connect()
+            cursor = db.cursor()
+            cursor.execute(sql)
+        except Exception:
+            logging.exception("DBException while fetching timezones")
+            return (DB_STATUS.ERROR, None)
+        else:
+            tz = cursor.fetchall()
+            return (DB_STATUS.OK, Timezones(tz))
         finally:
             cursor.close()
             db.close()

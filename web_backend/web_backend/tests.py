@@ -18,8 +18,11 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import unittest
 from pyramid import testing
 from pyramid.httpexceptions import HTTPFound
+import engine.db
 
 # TODO::normalize method/class naming convention
+# TODO::unittest for db and game_manager (goal 100% coverage)
+# TODO::use mock sqlite3 for db unittest (see 'import as' and mock)
 
 class ViewTests(unittest.TestCase):
     """ functionnal tests of the views """
@@ -100,7 +103,6 @@ class ViewTests(unittest.TestCase):
                       post={'email': '', 'password': ''})
 
         # test POST db error
-        import engine.db
         engine.db.change_db_fail(True)
         self.gen_test('/login',
                       tests_true=[('Ooops... Error reading player '
@@ -161,7 +163,6 @@ class ViewTests(unittest.TestCase):
                       follow=False)
 
         # test POST db write error
-        import engine.db
         engine.db.change_db_fail(True)
         self.gen_test('/register',
                       tests_true=['Ooops... Error writing player in database.'],
@@ -207,7 +208,6 @@ class ViewTests(unittest.TestCase):
                       follow=False)
 
         # test POST db write error
-        import engine.db
         engine.db.change_db_fail(True)
         self.gen_test('/editprofile',
                       tests_true=['Ooops... Error writing player in database.'],
@@ -249,7 +249,6 @@ class ViewTests(unittest.TestCase):
                       follow=False)
 
         # test display can't get players infos
-        import engine.db
         engine.db.change_db_fail(True)
         self.gen_test('/creategame',
                       tests_true=[('Ooops... Error reading players infos '
@@ -312,7 +311,6 @@ class ViewTests(unittest.TestCase):
                       post={'email': 'test@test.com', 'password': 'test'})
 
         # test DB not ok 
-        import engine.db
         engine.db.change_db_fail(True)
         self.gen_test('/joingame',
                       tests_true=['Ooops... Error reading games from database'])
@@ -337,7 +335,6 @@ class ViewTests(unittest.TestCase):
                       post={'email': 'test@test.com', 'password': 'test'})
 
         # test DB not ok 
-        import engine.db
         engine.db.change_db_fail(True)
         self.gen_test('/mygames',
                       tests_true=['Ooops... Error reading games from database'])

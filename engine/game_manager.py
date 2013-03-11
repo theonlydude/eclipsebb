@@ -71,7 +71,7 @@ class GamesManager(object):
         self._db = DBInterface(test_mode)
 
         (status_ext, self.ext_infos) = self._db.get_extensions_infos()
-        (status_tz, self.timezones) = self._db.get_TZ()
+        (status_tz, self.timezones) = self._db.get_timezones()
         # if a database error occurs so early, just quit
         if status_ext != DB_STATUS.OK or status_tz != DB_STATUS.OK:
             sys.exit()
