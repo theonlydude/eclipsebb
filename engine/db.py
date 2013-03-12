@@ -234,7 +234,10 @@ class DBInterface(object):
     @engine.util.log
     @fail
     def get_game_ext(self, game_id):
-        """ return a dict of id: name """
+        """ return the activated extensions for the given game
+        args: game_id (int)
+        return: dict of {id (int): name (str)}
+        """
         sql = ("select g.extension_id, e.name from games_extensions g, "
                "extensions e where g.extension_id = e.id and g.game_id = ?;")
         try:
