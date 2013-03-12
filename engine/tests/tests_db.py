@@ -15,10 +15,12 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
+from datetime import datetime
 import logging
 import unittest
 import engine.db
 from engine.db import DB_STATUS
+from engine.web_types import Game
 
 class DBTests(unittest.TestCase):
     def setUp(self):
@@ -58,42 +60,127 @@ class DBTests(unittest.TestCase):
 
     def test_game(self):
         """ methods tested:
-        create_game
-        save_game
-        load_game
         get_game_players_ids
         get_game_ext
         get_game_states_ids
         get_pub_priv_games_ids
         get_my_games_ids
+        create_game
+        save_game
+        load_game
         """
-        test_game_id = 1
-        status, players_ids = self.db.get_game_players_ids(test_game_id)
-        self.assertEqual(status, DB_STATUS.OK)
-        self.assertTrue(1 in players_ids)
-        self.assertTrue(2 in players_ids)
+        # the games ids in the test db
+        not_started_gid = 1
+        in_progress_gid = 2
+        ended_gid = 3
+        not_a_gid = 666
 
-        # in the test game, extensions are:
+        # in the 'not started' test game, players are : [1, 2]
+        status, players_ids = self.db.get_game_players_ids(not_started_gid)
+        self.assertEqual(status, DB_STATUS.OK)
+        # there's no 'order by' in the sql query, so the order is not guaranteed
+        players_ids.sort()
+        self.assertEqual([1, 2], players_ids)
+
+        # in the 'not started' test game, extensions are:
         # {2: 'developments', 4: 'secret_world', 6: 'ancient_hives'}
-        status, game_exts = self.db.get_game_ext(test_game_id)
+        status, game_exts = self.db.get_game_ext(not_started_gid)
         self.assertEqual(status, DB_STATUS.OK)
-        self.assertTrue(2 in game_exts)
-        self.assertTrue(4 in game_exts)
-        self.assertTrue(6 in game_exts)
-        self.assertFalse(1 in game_exts)
-        self.assertFalse(3 in game_exts)
-        self.assertFalse(5 in game_exts)
+        self.assertEqual(game_exts, {2: 'developments',
+                                     4: 'secret_world',
+                                     6: 'ancient_hives'})
 
-        status, data = self.db.get_game_states_ids(test_game_id)
+        # no states, not implemented yet
+        status, states_ids = self.db.get_game_states_ids(not_started_gid)
+        self.assertEqual(status, DB_STATUS.OK)
+        self.assertEqual(states_ids, [])
+
+        # the 'not started' test game is public
+        status, games_ids = self.db.get_pub_priv_games_ids()
+        self.assertEqual(status, DB_STATUS.OK)
+        self.assertEqual(games_ids, ([not_started_gid], []))
+
+        player_1_id = 1
+        player_2_id = 2
+        # the test player has join all the test games : not started,
+        # in progress and ended        
+        status, games_ids = self.db.get_my_games_ids(player_1_id)
+        self.assertEqual(status, DB_STATUS.OK)
+        games_ids.sort()
+        self.assertEqual(games_ids, [1, 2])
+        
+        # game loading
+        status, game = self.db.load_game(not_a_gid)
+        self.assertEqual(status, DB_STATUS.NO_ROWS)
+        self.assertEqual(game, None)
+
+        status, game = self.db.load_game(in_progress_gid)
+        self.assertEqual(status, DB_STATUS.OK)
+        self.assertEqual(game.id_, 2)
+        self.assertEqual(game.name, 'my in-progress test game')
+        self.assertEqual(game.started, True)
+        self.assertEqual(game.ended, False)
+        self.assertEqual(game.level, 2)
+        self.assertEqual(game.cur_state_id, -1)
+        self.assertEqual(game.private, False)
+        self.assertEqual(game.password, '')
+        start_date = datetime.strptime('2006-06-06 06:06:06.666666',
+                                       '%Y-%m-%d %H:%M:%S.%f')
+        self.assertEqual(game.start_date, start_date)
+        last_play = datetime.strptime('2006-06-16 06:06:06.666666',
+                                      '%Y-%m-%d %H:%M:%S.%f')
+        self.assertEqual(game.last_play, last_play)
+        self.assertEqual(game.num_players, 2)
+        self.assertEqual(game.creator_id, 2)
+        # loaded by the gm, not db, so must be empty
+        self.assertEqual(game.players_ids, [])
+        self.assertEqual(game.extensions, {})
+        self.assertEqual(game.state_ids, [])
+        self.assertEqual(game.last_valid_state_id, None)
+
+        # update game
+        game.last_play = datetime.now()
+        game.cur_state_id = 666
+        status, dummy = self.db.save_game(game)
         self.assertEqual(status, DB_STATUS.OK)
 
-        status, data = self.db.get_pub_priv_games_ids()
+        status, game_mod = self.db.load_game(in_progress_gid)
+        self.assertEqual(status, DB_STATUS.OK)
+        self.assertEqual(game.last_play, game_mod.last_play)
+        self.assertEqual(game.cur_state_id, game_mod.cur_state_id)
+
+        # create game
+        new_game = Game(creator_id=1, name='game creation test', level=3,
+                        private=True, password='test', num_players=3,
+                        extensions={1: 'rare_technologies', 11: 'alliances'})
+        players_ids = [player_1_id, player_2_id]
+        status, new_game = self.db.create_game(new_game, players_ids)
         self.assertEqual(status, DB_STATUS.OK)
 
-        test_player_id = 1
-        status, data = self.db.get_my_games_ids(test_player_id)
+        status, new_game_reload = self.db.load_game(new_game.id_)
         self.assertEqual(status, DB_STATUS.OK)
-
+        self.assertEqual(new_game.id_, new_game_reload.id_)
+        self.assertEqual(new_game.name, new_game_reload.name)
+        self.assertEqual(new_game.started, new_game_reload.started)
+        self.assertEqual(new_game.ended, new_game_reload.ended)
+        self.assertEqual(new_game.level, new_game_reload.level)
+        self.assertEqual(new_game.cur_state_id, new_game_reload.cur_state_id)
+        self.assertEqual(new_game.private, new_game_reload.private)
+        self.assertEqual(new_game.password, new_game_reload.password)
+        self.assertEqual(new_game.start_date, new_game_reload.start_date)
+        self.assertEqual(new_game.last_play, new_game_reload.last_play)
+        self.assertEqual(new_game.num_players, new_game_reload.num_players)
+        self.assertEqual(new_game.creator_id, new_game_reload.creator_id)
+        # load_game returns an incomplete game
+        self.assertNotEqual(new_game.players_ids, new_game_reload.players_ids)
+        self.assertNotEqual(new_game.extensions, new_game_reload.extensions)
+        # TODO::no states for now
+        self.assertEqual(new_game.state_ids, new_game_reload.state_ids)
+        self.assertEqual(new_game.last_valid_state_id,
+                         new_game_reload.last_valid_state_id)
+        self.assertEqual(new_game.cur_state.__dict__,
+                         new_game_reload.cur_state.__dict__)
+ 
     def test_player(self):
         """ methods tested:
         create_player

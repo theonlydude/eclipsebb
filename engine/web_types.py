@@ -56,7 +56,7 @@ class Game(object):
         self.started = False
         self.ended = False
         self.level = level
-        self.cur_state_id = GameState(num_players)
+        self.cur_state_id = -1
 
         self.private = private
         self.password = password
@@ -80,16 +80,18 @@ class Game(object):
         # turn if one of its actions is not valid
         self.last_valid_state_id = None
 
+        self.cur_state = GameState(num_players)
+
     @classmethod
     def from_db(cls, **kargs):
         """ constructor when game is loaded from DB """
         game = cls(kargs['creator_id'], kargs['name'], kargs['level'],
                    kargs['private'], kargs['password'],
-                   kargs['num_players'], None)
+                   kargs['num_players'], {})
         game.id_ = kargs['id']
         game.started = kargs['started']
         game.ended = kargs['ended']
-        game.cur_state_id = kargs['cur_state']
+        game.cur_state_id = kargs['cur_state_id']
         game.start_date = kargs['start_date']
         game.last_play = kargs['last_play']
         return game

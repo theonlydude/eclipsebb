@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS games (
     -- difficulty
     level INTEGER NOT NULL,
     -- the state id from table state
-    cur_state INTEGER DEFAULT -1,
+    cur_state_id INTEGER DEFAULT -1,
     -- game joined with password
     private BOOL NOT NULL,
     -- only when private game

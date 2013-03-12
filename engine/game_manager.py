@@ -90,7 +90,7 @@ class GamesManager(object):
         game = Game(creator_id, name, level, private, password,
                     num_players, extensions)
 
-        (status, game_id) = self._db.create_game(game, players)
+        (status, game) = self._db.create_game(game, players)
 
         if status != DB_STATUS.OK:
             logging.error(("Error inserting game {!r} by {} in "
@@ -99,8 +99,7 @@ class GamesManager(object):
 
         logging.info("Game {!r} successfully created".format(name))
 
-        game.id_ = game_id
-        self._games[game_id] = game
+        self._games[game.id_] = game
         return True
         
     @engine.util.log
@@ -240,7 +239,7 @@ class GamesManager(object):
         (status, id_) = self._db.auth_player(email, password)
         if status == DB_STATUS.OK:
             return (True, True, id_)
-        elif status == DB_STATUS.CONST_ERROR:
+        elif status == DB_STATUS.NO_ROWS:
             return (True, False, None)
         else:
             return (False, None, None)

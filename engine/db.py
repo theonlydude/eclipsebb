@@ -25,7 +25,7 @@ import engine.util
 from engine.web_types import Player, Timezones, Game
 
 # status returned by all db methods
-DB_STATUS = engine.util.enum(OK=0, ERROR=1, CONST_ERROR=2)
+DB_STATUS = engine.util.enum(OK=0, ERROR=1, CONST_ERROR=2, NO_ROWS=3)
 
 # allow some queries to fail for unittest
 _fail = False
@@ -58,12 +58,12 @@ class DBInterface(object):
     """
     Handles the connections to the database
 
-    All methods return a tuple: (DB_STATUS, param)
+    All methods return a tuple: (DB_STATUS, data)
     enum DB_STATUS:
      OK: if no error
      ERROR: if database write/read error
      CONST_ERROR: if database constraints error
-    param: optionnal returned param depending on method
+    data: optionnal returned data depending on method
     """
     def __init__(self, test_mode=False):
         """ if the .db file doesn't exist create all the tables in the db """
@@ -116,16 +116,21 @@ class DBInterface(object):
     @engine.util.log
     @fail
     def create_game(self, game, players_ids):
-        """ returns the game id """
-        sql_game = ("insert into games (name, level, private, password, "
-                    "start_date, num_players, creator_id) values "
-                    "(?, ?, ?, ?, ?, ?, ?);")
+        """ create a game in the db, the rowid is the game id
+        args:
+          game: incomplete game object, miss players_ids
+          players_ids: [id_1 (int), ..., id_2 (int)]
+        return: complete game
+        """
+        sql_game = ('INSERT INTO games (name, level, private, password, '
+                    'start_date, num_players, creator_id) VALUES '
+                    '(?, ?, ?, ?, ?, ?, ?);')
         params_game = (game.name, game.level, game.private, game.password,
                        game.start_date, game.num_players, game.creator_id)
-        sql_player = ("insert into games_players (game_id, player_id) "
-                      "values (?, ?);")
-        sql_extension = ("insert into games_extensions (game_id, "
-                         "extension_id) values (?, ?);")
+        sql_player = ('insert into games_players (game_id, player_id) '
+                      'values (?, ?);')
+        sql_extension = ('insert into games_extensions (game_id, '
+                         'extension_id) values (?, ?);')
         try:
             db = self._connect()
             cursor = db.cursor()
@@ -133,6 +138,7 @@ class DBInterface(object):
             # create game
             cursor.execute(sql_game, params_game)
             game_id = cursor.lastrowid
+            game.id_ = game_id
 
             # add game/player
             for player_id in players_ids:
@@ -152,7 +158,7 @@ class DBInterface(object):
                                "{}").format(game.name, game.creator_id))
             return (DB_STATUS.ERROR, None)
         else:
-            return (DB_STATUS.OK, game_id)
+            return (DB_STATUS.OK, game)
         finally:
             cursor.close()
             db.close()
@@ -160,16 +166,17 @@ class DBInterface(object):
     @engine.util.log
     @fail
     def save_game(self, game):
+        """ update the content of the game row.
+        args: complete game object
+        return: None
         """
-        update the content of the game row.
-        """
-        sql = ("update games set started=?, ended=?, cur_state=?, "
-               "last_play=?, where id = ?")
+        sql = ("update games set started=?, ended=?, cur_state_id=?, "
+               "last_play=? where id = ?")
         try:
             db = self._connect()
             cursor = db.cursor()
 
-            cursor.execute(sql, (game.started, game.ended, game.cur_state,
+            cursor.execute(sql, (game.started, game.ended, game.cur_state_id,
                                  game.last_play, game.id_))
             db .commit()
         except Exception:
@@ -185,11 +192,13 @@ class DBInterface(object):
     @engine.util.log
     @fail
     def load_game(self, game_id):
-        """
-        returns a game object
+        """ load a game from the db
+        args: game_id (int)
+        return: incomplete game object
+
         do not load players ids, extensions ids, states ids
         """
-        sql = "select * from games where id = ?;"
+        sql = 'select * from games where id = ?;'
         try:
             db = self._connect()
             # to have access to returned row as a dict
@@ -197,13 +206,13 @@ class DBInterface(object):
             cursor = db.cursor()
             cursor.execute(sql, (game_id, ))
         except Exception:
-            logging.exception(("DBException while loading game with "
-                               "id {}").format(game_id))
+            logging.exception(('DBException while loading game with '
+                               'id {}').format(game_id))
             return (DB_STATUS.ERROR, None)
         else:
             game_params = cursor.fetchone()
             if game_params is None:
-                return (DB_STATUS.ERROR, None)
+                return (DB_STATUS.NO_ROWS, None)
             game = Game.from_db(**game_params)
             return (DB_STATUS.OK, game)
         finally:
@@ -213,7 +222,10 @@ class DBInterface(object):
     @engine.util.log
     @fail
     def get_game_players_ids(self, game_id):
-        """ return a list of players ids """
+        """ return a list of players ids registered with the game
+        args: game_id (int)
+        return: [player_id_1 (int), ..., player_id_n (int)]
+        """
         sql = "select player_id from games_players where game_id = ?;"
         try:
             db = self._connect()
@@ -238,15 +250,15 @@ class DBInterface(object):
         args: game_id (int)
         return: dict of {id (int): name (str)}
         """
-        sql = ("select g.extension_id, e.name from games_extensions g, "
-               "extensions e where g.extension_id = e.id and g.game_id = ?;")
+        sql = ('select g.extension_id, e.name from games_extensions g, '
+               'extensions e where g.extension_id = e.id and g.game_id = ?;')
         try:
             db = self._connect()
             cursor = db.cursor()
             cursor.execute(sql, (game_id, ))
         except Exception:
-            logging.exception(("DBException while getting extensions for game "
-                               "with id {}").format(game_id))
+            logging.exception(('DBException while getting extensions for game '
+                               'with id {}').format(game_id))
             return (DB_STATUS.ERROR, None)
         else:
             ext_ids_names = cursor.fetchall()
@@ -259,15 +271,21 @@ class DBInterface(object):
     @engine.util.log
     @fail
     def get_game_states_ids(self, game_id):
-        """ return a list of states ids """
-        sql = "select id from state where game_id = ?;"
+        """ return the list of the game's states ids
+        args: game_id (int)
+        return: [state_id_1 (int), state_id_2 (int), ..., state_id_n(int)]
+        """
+        sql = ('SELECT id '
+               'FROM state '
+               'WHERE game_id = ? '
+               'ORDER BY id;')
         try:
             db = self._connect()
             cursor = db.cursor()
             cursor.execute(sql, (game_id, ))
         except Exception:
-            logging.exception(("DBException while getting states for game "
-                               "with id {}").format(game_id))
+            logging.exception(('DBException while getting states for game '
+                               'with id {}').format(game_id))
             return (DB_STATUS.ERROR, None)
         else:
             states_ids = cursor.fetchall()
@@ -280,8 +298,12 @@ class DBInterface(object):
     @engine.util.log
     @fail
     def get_pub_priv_games_ids(self):
-        """
-        return (None, None) if error
+        """ return the ids of games not yet started (waiting for players)
+        there's two kind of games, public ones joinable to everyone and
+        privates ones joinable only if you have the password.
+        args: none
+        return: ([public_game_id_1 (int), ..., public_game_id_n (int)],
+                 [private_game_id_1 (int), ..., private_game_id_n (int)])
         """
         sql_pub = ('SELECT id FROM games where started = 0 and private = 0 '
                    'order by name;')
@@ -294,7 +316,7 @@ class DBInterface(object):
             cursor_priv = db.cursor()
             cursor_priv.execute(sql_priv)
         except Exception:
-            logging.exception("DBException while fetching pub/priv games")
+            logging.exception('DBException while fetching pub/priv games')
             return (DB_STATUS.ERROR, None)
         else:
             pub_ids = cursor_pub.fetchall()
@@ -310,15 +332,22 @@ class DBInterface(object):
     @engine.util.log
     @fail
     def get_my_games_ids(self, player_id):
-        """ return None if error """
-        sql = 'SELECT game_id FROM games_players where player_id =?;'
+        """ return the not-finished games joined by the player
+        args: player_id (int)
+        return: [game_id_1 (int), ..., game_id_n (int)]
+        """
+        sql = ('SELECT gp.game_id '
+               'FROM games_players gp, games g '
+               'WHERE gp.game_id = g.id '
+               ' AND gp.player_id = ? '
+               ' AND g.ended = 0;')
         try:
             db = self._connect()
             cursor = db.cursor()
             cursor.execute(sql, (player_id,))
         except Exception:
-            logging.exception(("DBException while fetching games for player "
-                               "{}").format(player_id))
+            logging.exception(('DBException while fetching games for player '
+                               '{}').format(player_id))
             return (DB_STATUS.ERROR, None)
         else:
             game_ids = cursor.fetchall()
@@ -336,19 +365,19 @@ class DBInterface(object):
         return playerId
         """
         sha1_pass = self._get_pass_hash(email, password)
-        sql = "INSERT INTO players VALUES (NULL, ?, ?, ?, ?)"
+        sql = 'INSERT INTO players VALUES (NULL, ?, ?, ?, ?)'
         try:
             db = self._connect()
             cursor = db.cursor()
             cursor.execute(sql, (name, email, sha1_pass, tz_id))
             db.commit()
         except sqlite3.IntegrityError:
-            logging.debug("Player ({}, {}) already registered".format(name,
+            logging.debug('Player ({}, {}) already registered'.format(name,
                                                                       email))
             return (DB_STATUS.CONST_ERROR, None)
         except Exception:
-            logging.exception(("DBException while creating player with "
-                               "name {}").format(name))
+            logging.exception(('DBException while creating player with '
+                               'name {}').format(name))
             return (DB_STATUS.ERROR, None)
         else:
             # the id primary key = rowid in sqlite3
@@ -385,12 +414,12 @@ class DBInterface(object):
                                  player.id_))
             db.commit()
         except sqlite3.IntegrityError:
-            logging.debug(("Email ({}, {}) already "
-                           "registered").format(player.name, player.email))
+            logging.debug(('Email ({}, {}) already '
+                           'registered').format(player.name, player.email))
             return (DB_STATUS.CONST_ERROR, None)
         except Exception:
-            logging.exception(("DBException while updating player with "
-                               "name {}").format(player.name))
+            logging.exception(('DBException while updating player with '
+                               'name {}').format(player.name))
             return (DB_STATUS.ERROR, None)
         else:
             return (DB_STATUS.OK, None)
@@ -412,13 +441,13 @@ class DBInterface(object):
             cursor = db.cursor()
             cursor.execute(sql, (email, sha1_pass))
         except Exception:
-            logging.exception(("DBException while auth player with "
-                               "email {}").format(email))
+            logging.exception(('DBException while auth player with '
+                               'email {}').format(email))
             return (DB_STATUS.ERROR, None)
         else:
             result = cursor.fetchone()
             if result is None:
-                return (DB_STATUS.CONST_ERROR, None)
+                return (DB_STATUS.NO_ROWS, None)
             else:
                 player_id = result[0]
                 return (DB_STATUS.OK, player_id)
@@ -439,15 +468,15 @@ class DBInterface(object):
             cursor = db.cursor()
             cursor.execute(sql, (player_id, ))
         except Exception:
-            logging.exception(("DBException while loading player with "
-                               "id {}").format(player_id))
+            logging.exception(('DBException while loading player with '
+                               'id {}').format(player_id))
             return (DB_STATUS.ERROR, None)
         else:
             result = cursor.fetchone()
             if result is None:
-                logging.warning(("No data found for player with id "
-                                 "{}").format(player_id))
-                return (DB_STATUS.ERROR, None)
+                logging.warning(('No data found for player with id '
+                                 '{}').format(player_id))
+                return (DB_STATUS.NO_ROWS, None)
             else:
                 return (DB_STATUS.OK, Player(*result))
         finally:
@@ -468,7 +497,7 @@ class DBInterface(object):
             cursor = db.cursor()
             cursor.execute(sql)
         except Exception:
-            logging.exception("DBException while fetching players")
+            logging.exception('DBException while fetching players')
             return (DB_STATUS.ERROR, None)
         else:
             return (DB_STATUS.OK, cursor.fetchall())
@@ -487,7 +516,7 @@ class DBInterface(object):
 
         return the state_id, None if error
         """
-        sql = "INSERT INTO state VALUES (NULL, ?, ?);"
+        sql = 'INSERT INTO state VALUES (NULL, ?, ?);'
         try:
             pic_state = pickle.dumps(state)
             db = self._connect()
@@ -495,8 +524,8 @@ class DBInterface(object):
             cursor.execute(sql, (game_id, pic_state))
             db.commit()
         except Exception:
-            logging.exception(("DBException while saving state for "
-                               "game {}").format(game_id))
+            logging.exception(('DBException while saving state for '
+                               'game {}').format(game_id))
             return (DB_STATUS.ERROR, None)
         else:
             state_id = cursor.lastrowid
@@ -509,14 +538,14 @@ class DBInterface(object):
     @fail
     def load_state(self, state_id):
         """ return None if error """
-        sql = "select pickle from state where id = ?;"
+        sql = 'select pickle from state where id = ?;'
         try:
             db = self._connect()
             cursor = db.cursor()
             cursor.execute(sql, (state_id, ))
         except Exception:
-            logging.exception(("DBException while loading state "
-                               "{}").format(state_id))
+            logging.exception(('DBException while loading state '
+                               '{}').format(state_id))
             return (DB_STATUS.ERROR, None)
         else:
             pic_state = cursor.fetchone()
@@ -535,7 +564,7 @@ class DBInterface(object):
             cursor = db.cursor()
             cursor.execute(sql)
         except Exception:
-            logging.exception("DBException while fetching extensions")
+            logging.exception('DBException while fetching extensions')
             return (DB_STATUS.ERROR, None)
         else:
             return (DB_STATUS.OK, cursor.fetchall())
@@ -553,7 +582,7 @@ class DBInterface(object):
             cursor = db.cursor()
             cursor.execute(sql)
         except Exception:
-            logging.exception("DBException while fetching timezones")
+            logging.exception('DBException while fetching timezones')
             return (DB_STATUS.ERROR, None)
         else:
             tz = cursor.fetchall()

@@ -24,8 +24,9 @@ INSERT INTO players (id, name, email, password, timezone)
 VALUES(2, 'test player dup', 'test_dup@test.com',
        '74cba914888a2adcf37b871d80d83ecbb4b56712', 600);
 
--- test games
-INSERT INTO games (id, name, started, ended, level, cur_state, private,
+-- test games --
+-- not started
+INSERT INTO games (id, name, started, ended, level, cur_state_id, private,
                    password, start_date, last_play, num_players, creator_id)
 VALUES(1, 'my test game', 0, 0, 3, -1, 0, '',
        '2006-06-06 06:06:06.666666', NULL, 3, 1);
@@ -41,3 +42,39 @@ INSERT INTO games_extensions (game_id, extension_id)
 VALUES(1, 4);
 INSERT INTO games_extensions (game_id, extension_id)
 VALUES(1, 6);
+
+-- in-progress game
+INSERT INTO games (id, name, started, ended, level, cur_state_id, private,
+                   password, start_date, last_play, num_players, creator_id)
+VALUES(2, 'my in-progress test game', 1, 0, 2, -1, 0, '',
+       '2006-06-06 06:06:06.666666', '2006-06-16 06:06:06.666666', 2, 2);
+
+INSERT INTO games_players (game_id, player_id)
+VALUES(2, 1);
+INSERT INTO games_players (game_id, player_id)
+VALUES(2, 2);
+
+INSERT INTO games_extensions (game_id, extension_id)
+VALUES(2, 1);
+INSERT INTO games_extensions (game_id, extension_id)
+VALUES(2, 3);
+INSERT INTO games_extensions (game_id, extension_id)
+VALUES(2, 5);
+
+-- ended game
+INSERT INTO games (id, name, started, ended, level, cur_state_id, private,
+                   password, start_date, last_play, num_players, creator_id)
+VALUES(3, 'my ended test game', 1, 1, 2, -1, 0, '',
+       '2006-06-06 06:06:06.666666', '2006-06-16 06:06:06.666666', 2, 1);
+
+INSERT INTO games_players (game_id, player_id)
+VALUES(3, 1);
+INSERT INTO games_players (game_id, player_id)
+VALUES(3, 2);
+
+INSERT INTO games_extensions (game_id, extension_id)
+VALUES(3, 1);
+INSERT INTO games_extensions (game_id, extension_id)
+VALUES(3, 3);
+INSERT INTO games_extensions (game_id, extension_id)
+VALUES(3, 5);
