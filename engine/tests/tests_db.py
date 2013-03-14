@@ -21,7 +21,7 @@ import unittest
 import engine.db
 from engine.data_types import GameState
 from engine.db import DB_STATUS
-from engine.web_types import Game, Player
+from engine.web_types import Game, WebPlayer
 
 class DBTests(unittest.TestCase):
     def setUp(self):
@@ -200,8 +200,8 @@ class DBTests(unittest.TestCase):
         get_players_infos
         """
         ## test creating new player
-        player = Player(None, 'new test player', 'new_test@test.com',
-                        120, 'Test01!')
+        player = WebPlayer(None, 'new test player', 'new_test@test.com',
+                           120, 'Test01!')
         status, player_id = self.db.create_player(player.name,
                                                   player.email,
                                                   player.password,
@@ -282,7 +282,68 @@ class DBTests(unittest.TestCase):
         get_extensions_infos
         get_timezones
         """
-        status, data = self.db.get_extensions_infos()
+        status, ext_infos = self.db.get_extensions_infos()
         self.assertEqual(status, DB_STATUS.OK)
-        status, data = self.db.get_timezones()
+        self.assertEqual([(1, 'rare_technologies', 'enable rare technologies'),
+                          (2, 'developments', 'enable developments'),
+                          (3, 'ancient_worlds', 'enable ancient worlds'),
+                          (4, 'secret_world', ('put unused ancient worlds '
+                                               'in the heap')),
+                          (5, 'ancient_sdcg', 'enable ancient SDCG'),
+                          (6, 'ancient_hives', 'enable ancients hives'),
+                          (7, 'warp_portals', 'enable warp portals'),
+                          (8, 'new_discoveries', 'add new discoveries'),
+                          (9, 'predictable_technologies', ('enable predictable '
+                                                           'technologies')),
+                          (10, 'turn_order', 'enable direction of play'),
+                          (11, 'alliances', 'enable alliances'),
+                          (12, 'small_galaxy', ('enable small galaxy (three '
+                                                'players only)'))],
+                         ext_infos)
+        status, timezones = self.db.get_timezones()
         self.assertEqual(status, DB_STATUS.OK)
+        self.assertEqual([(-720, 'UTC-12:00 (Baker Island, Howland Island)'),
+                          (-660, 'UTC-11:00 (SST - Samoa Standard Time)'),
+                          (-600, ('UTC-10:00 (HST - Haway-Aleutian Standard'
+                                  ' Time)')),
+                          (-570, 'UTC-09:30 (Marquesas Islands)'),
+                          (-540, 'UTC-09:00 (AKST - Alaska Standard Time)'),
+                          (-480, 'UTC-08:00 (PST - Pacific Standard Time)'),
+                          (-420, 'UTC-07:00 (MST - Mountain Standard Time)'),
+                          (-360, 'UTC-06:00 (CST - Central Standard Time)'),
+                          (-300, 'UTC-05:00 (EST - Eastern Standard Time)'),
+                          (-270, 'UTC-04:30 (Venezuela)'),
+                          (-240, 'UTC-04:00 (AST - Atlantic Standard Time)'),
+                          (-210, 'UTC-03:30 (NST - Newfoundland Standard Time)'),
+                          (-180, 'UTC-03:00 (Saint-Pierre and Miquelon'),
+                          (-120, 'UTC-02:00 (Fernando de Noronha)'),
+                          (-60, 'UTC-01:00 (Cape Verde)'),
+                          (0, 'UTC+00:00 (WET - Western European Time)'),
+                          (60, 'UTC+01:00 (CET - Central European Time)'),
+                          (120, 'UTC+02:00 (EET - Eastern European Time)'),
+                          (180, 'UTC+03:00 (Iraq)'),
+                          (210, 'UTC+03:30 (Iran)'),
+                          (240, 'UTC+04:00 (Russia - Moscow Time)'),
+                          (270, 'UTC+04:30 (Afghanistan)'),
+                          (300, 'UTC+05:00 (Kerguelen Islands)'),
+                          (330, 'UTC+05:30 (India, Sri Lanka)'),
+                          (345, 'UTC+05:45 (Nepal)'),
+                          (360, 'UTC+06:00 (Kyrgyzstan)'),
+                          (390, 'UTC+06:30 (Cocos Islands)'),
+                          (420, 'UTC+07:00 (Laos)'),
+                          (480, ('UTC+08:00 (AWST - Australian Western Standard'
+                                 ' Time)')),
+                          (525, 'UTC+08:45 (Eucla)'),
+                          (540, 'UTC+09:00 (JST - Japan Standard Time)'),
+                          (570, ('UTC+09:30 (ACST - Australian Central Standard'
+                                 ' Time)')),
+                          (600, ('UTC+10:00 (AEST - Autralian Eastern Standard'
+                                 ' Time)')),
+                          (630, 'UTC+10:30 (New South Wales)'),
+                          (660, 'UTC+11:00 (New Caledonia)'),
+                          (690, 'UTC+11:30 (Norfolk Island)'),
+                          (720, 'UTC+12:00 (Wallis and Futuna)'),
+                          (765, 'UTC+12:45 (Chatham Islands)'),
+                          (780, 'UTC+13:00 (Tokelau)'),
+                          (840, 'UTC+14:00 (Line Islands)')],
+                         timezones.list_tz)

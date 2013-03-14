@@ -16,13 +16,13 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 import logging
-import pyramid
+from validate_email import validate_email
 from pyramid.httpexceptions import HTTPFound
-from pyramid.response import Response
 from pyramid.view import view_config
 
 # simple helpers
 def is_auth(request):
+    """ check if the player is authentified """
     return 'auth' in request.session and request.session['auth']
 
 def already_logged(request):
@@ -34,16 +34,19 @@ def already_logged(request):
     return HTTPFound(location=request.route_url('home'))
 
 def db_read_error(request, msg):
+    """ return to home displaying a db read error """
     request.session.flash(('Ooops... Error reading {} '
                            'from database.').format(msg))
     return HTTPFound(location=request.route_url('home'))
 
 def db_write_error(request, msg):
+    """ return to home displaying a db write error """
     request.session.flash('Ooops... Error writing {} in database.'.format(msg))
     return HTTPFound(location=request.route_url('home'))
 
 # functions to access values in POST
 def get_post_int(request, key):
+    """ helper to extract int from POST variables """
     val = request.POST.get(key)
     if val is None:
         return None
@@ -51,18 +54,32 @@ def get_post_int(request, key):
         return int(val)
 
 def get_post_str(request, key):
+    """ helper to extract str from POST variables """
     return request.POST.get(key)
 
 def get_post_bool(request, key):
+    """ helper to extract bool from POST variables """
     val = request.POST.get(key)
     return val == 'on'
 
 @view_config(route_name='creategame', renderer='creategame.mako')
 def view_create_game(request):
+    """ create a new game """
     if not is_auth(request):
         return {'auth': False}
     
     gm =  request.registry.settings['gm']
+
+    player = gm.get_player(request.session['player_id'])
+    players_infos = gm.get_players_infos()
+
+    if players_infos is None:
+        return db_read_error(request, 'players infos')
+
+    return_values = {'auth': True,
+                     'player': player,
+                     'players_infos': players_infos,
+                     'extensions_infos': gm.ext_infos}
 
     if request.method == 'POST':
         game_name = get_post_str(request, 'name')
@@ -80,43 +97,34 @@ def view_create_game(request):
 
         # extensions is a dict of name->id
         extensions = {}
-        for id_, name, desc in gm.ext_infos:
+        for id_, name, _ in gm.ext_infos:
             checked = get_post_bool(request, name)
             if checked:
                 extensions[name] = id_
 
         if not game_name or not num_players or not level:
             request.session.flash("Enter game name, #players and level.")
-        else:
-            passwd_checked = True
-            if private:
-                if password != password2:
-                    request.session.flash('Passwords not identical.')
-                    passwd_checked = False
+            return return_values
+
+        if private:
+            if password != password2:
+                request.session.flash('Passwords not identical.')
+                return return_values
             
-            if passwd_checked:
-                status = gm.create_game(creator_id, game_name, level,
-                                        private, password, num_players,
-                                        players_ids, extensions)
-                if not status:
-                    db_write_error(request, 'game')
-                else:
-                    request.session.flash('Game successfuly created.')
-                    return HTTPFound(location=request.route_url('home'))
+        status = gm.create_game(creator_id, game_name, level,
+                                private, password, num_players,
+                                players_ids, extensions)
+        if not status:
+            return db_write_error(request, 'game')
+        else:
+            request.session.flash('Game successfuly created.')
+            return HTTPFound(location=request.route_url('home'))
 
-    player = gm.get_player(request.session['player_id'])
-    players_infos = gm.get_players_infos()
-
-    if players_infos is None:
-        return db_read_error(request, 'players infos')
-
-    return {'auth': True,
-            'player': player,
-            'players_infos': players_infos,
-            'extensions_infos': gm.ext_infos}
+    return return_values
 
 @view_config(route_name='mygames', renderer='mygames.mako')
 def view_mygames(request):
+    """ list player games which are not ended """
     if not is_auth(request):
         return {'auth': False}
 
@@ -131,6 +139,7 @@ def view_mygames(request):
 
 @view_config(route_name='joingame', renderer='joingame.mako')
 def view_joingame(request):
+    """ list public and private not started games """
     if not is_auth(request):
         return {'auth': False}
 
@@ -147,10 +156,12 @@ def view_joingame(request):
 
 @view_config(route_name='home', renderer='home.mako')
 def view_home(request):
+    """ entry point for the users """
     return {'auth': is_auth(request)}
 
 @view_config(route_name='login')
 def view_login(request):
+    """ allow players to login """
     if is_auth(request):
         return already_logged(request)
 
@@ -181,11 +192,13 @@ def view_login(request):
     return HTTPFound(location=request.route_url('home'))
 
 def del_(obj, name):
+    """ simple helper which delete an attribute only if present """
     if name in obj:
         del obj[name]
 
 @view_config(route_name='logout')
 def view_logout(request):
+    """ logout player, empty session vars """
     if is_auth(request):
         del_(request.session, 'auth')
         del_(request.session, 'player_id')
@@ -197,6 +210,7 @@ def view_logout(request):
 
 @view_config(route_name='register', renderer='register.mako')
 def view_register(request):
+    """ register new player """
     if is_auth(request):
         return already_logged(request)
 
@@ -208,30 +222,43 @@ def view_register(request):
         password = get_post_str(request, 'password')
         password2 = get_post_str(request, 'password2')
         tz = get_post_str(request, 'timezone')
+
         if not name or not email or not password or not password2 or not tz:
             request.session.flash('Enter name, email, password and timezone.')
+            return {'timezones': gm.timezones}
+
+        if password != password2:
+            request.session.flash('Passwords not identical.')
+            return {'timezones': gm.timezones}
+
+        # validate the email
+        if not validate_email(email):
+            request.session.flash('Not a valid email.')
+            return {'timezones': gm.timezones}
+
+        (db_ok, dup_ok, _) = gm.create_player(name, email, password, tz)
+        if db_ok and dup_ok:
+            request.session.flash('Player successfuly created.')
+            return HTTPFound(location=request.route_url('home'))
+        elif db_ok and not dup_ok:
+            request.session.flash('Already registered name or email.')
         else:
-            if password != password2:
-                request.session.flash('Passwords not identical.')
-            else:
-                (db_ok, dup_ok, id_) = gm.create_player(name, email, password, tz)
-                if db_ok and dup_ok:
-                    request.session.flash('Player successfuly created.')
-                    return HTTPFound(location=request.route_url('home'))
-                elif db_ok and not dup_ok:
-                    request.session.flash('Already registered name or email.')
-                else:
-                    return db_write_error(request, 'player')
+            return db_write_error(request, 'player')
 
     return {'timezones': gm.timezones}
 
 @view_config(route_name='editprofile', renderer='editprofile.mako')
 def view_editprofile(request):
+    """ allow players to edit their profiles """
     if not is_auth(request):
         return {'auth': False}
 
     gm = request.registry.settings['gm']
     player = gm.get_player(request.session['player_id'])
+
+    return_values = {'auth': True,
+                     'player': player,
+                     'timezones': gm.timezones}
 
     if request.method == 'POST':
         email = get_post_str(request, 'email')
@@ -243,13 +270,15 @@ def view_editprofile(request):
 
         if email != player.email:
             to_update['email'] = email
+            # validate new email
+            if not validate_email(email):
+                request.session.flash('Not a valid email.')
+                return return_values
 
         if password and password2:
             if password != password2:
                 request.session.flash('Passwords not identical.')
-                return {'auth': True,
-                        'player': player,
-                        'timezones': gm.timezones}
+                return return_values
             else:
                 to_update['password'] = password
 
@@ -274,6 +303,4 @@ def view_editprofile(request):
             else:
                 return db_write_error(request, 'player')
 
-    return {'auth': True,
-            'player': player,
-            'timezones': gm.timezones}
+    return return_values

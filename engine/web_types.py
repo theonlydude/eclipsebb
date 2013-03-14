@@ -19,7 +19,7 @@ from collections import OrderedDict
 from datetime import datetime
 from engine.data_types import GameState
 
-class Player(object):
+class WebPlayer(object):
     """ Map infos stored in database """
     def __init__(self, *args):
         (self.id_,

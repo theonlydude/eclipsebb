@@ -17,79 +17,22 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import engine.util
 
-# all this types are stored inside the Game State
+# everything is stored inside the Game State
 
 class Player(object):
-    def __init__(self, name):
+    """ a player in the game """
+    def __init__(self, id_, name, races_wishes):
         # the id_ is the same as the web player id_
         self.id_ = id_
+        # name is the same as the web player name
         self.name = name
         # race is a string
-        self.race = None
+        self.race = 'unassigned'
         # a tab of #players races whishes, first is preferred one
         self.races_wishes = races_wishes
 
-# an hex has a number of planets, a number id, wormholes, an influence
-# token.
-# it can also be of a special type, like in the extension
-class Hex(object):
-    def __init__(self, id_, wormholes, planets):
-        self.id_ = id_
-        self.influence = None
-        # boolean tuple (true, false, true, true, false, false)
-        self.wormholes = wormholes
-        self.planets = planets
-
-        # can be rotated when put in game
-        self.rotation = None
-
-# a planet 
-class Planet(object):
-    def __init__(self, id_, slots):
-        self.id_ = id_
-        self.slots = slots
-
-# a population slot
-class PopSlot(object):
-    def __init__(self, id_, type_, star):
-        self.id_ = id_
-        # type can be: money, science, material, grey
-        self.type_ = type_
-        # is the slot starred
-        self.star = star
-        # the player having a pop cube on the slot
-        self.popOwner = None
-
-class Ship(object):
-    def __init__(self, id_):
-        pass
-
-class Research(object):
-    def __init__(self, id_):
-        pass
-
-class ShipUpgrade(object):
-    def __init__(self, id_):
-        pass
-
-class Orbital(object):
-    def __init__(self, id_):
-        pass
-
-class Monolith(object):
-    def __init__(self, id_):
-        pass
-
-class Influence(object):
-    def __init__(self, id_):
-        pass
-
-class SettlerShip(object):
-    def __init__(self, id_):
-        pass
-
-game_phases = engine.util.enum(INIT=0, TURN=1, END=2)
-turn_phases = engine.util.enum(ACTION=0, BATTLE=1, UPKEEP=2, CLEANUP=3)
+GAME_PHASES = engine.util.enum(INIT=0, TURN=1, END=2)
+TURN_PHASES = engine.util.enum(ACTION=0, BATTLE=1, UPKEEP=2, CLEANUP=3)
 class GameState(object):
     """
     the state of the game, to be sent to the client with json:
@@ -102,6 +45,7 @@ class GameState(object):
     """
     def __init__(self, num_players):
         """ for now store only players, to be filled with the rest """
+        self.id_ = -1
         # game phase INIT
         # installation phase: only once per game (when players
         #                     choose their race)
@@ -116,12 +60,12 @@ class GameState(object):
 
         # game phase END
         # end of the game phase: only once per game (nothing happened)
-        self.game_phase = game_phases.INIT
+        self.game_phase = GAME_PHASES.INIT
 
         self.turn_phase = None
 
         # the game is played in nine turns
-        self.turn = 0
+        self.cur_turn = 0
 
         # in a state, store only the actions to apply in order to
         # transition to the next state
@@ -136,25 +80,37 @@ class GameState(object):
 
         self.num_players = num_players
 
-    def addPlayer(self, id_, name, races_wishes):
-        player = Player(id_, name, races_wishes)
-        self.players[player.id_] = player
+    def add_player(self, id_, name, races_wishes):
+        """ players must be added after the state creation, when they manually
+        join the game and enter their race wishes.
+        """
+        self.players[id_] = Player(id_, name, races_wishes)
 
-    def getPlayer(self, id_):
-        return self.players[id_]
+    def get_player(self, id_):
+        """ return the player whose id is given
+        args: id_ (int)
+        return: Player object
+        """
+        if id_ in self.players:
+            return self.players[id_]
+        else:
+            return None
 
 #    def nextId(self):
 #        """ every objects in a state must have an uniq id """
 #        self.top_id += 1
 #        return self.top_id
 
-    def exportToJson(self):
+    def export_to_json(self):
+        """ send the state to the client to display it """
         pass
 
-    def isActionValid(self, action):
+    def is_action_valid(self, action):
+        """ check that an action sent from a player is a valid one """
         pass
 
-    def applyAction(self, action):
+    def apply_action(self, action):
+        """ apply the action to the state """
         pass
 
 
@@ -220,12 +176,69 @@ class Action(object):
       -end turn
     """
 
-    def __init__(self, element, oldZone, newZone):
+    def __init__(self, element, old_zone, new_zone):
         self.element = element
-        self.zone1 = zone1
-        self.zone2 = zone2
+        self.old_zone = old_zone
+        self.new_zone = new_zone
 
+# an hex has a number of planets, a number id, wormholes, an influence
+# token.
+# it can also be of a special type, like in the extension
+class Hex(object):
+    def __init__(self, id_, wormholes, planets):
+        self.id_ = id_
+        self.influence = None
+        # boolean tuple (true, false, true, true, false, false)
+        self.wormholes = wormholes
+        self.planets = planets
 
+        # can be rotated when put in game
+        self.rotation = None
+
+# a planet 
+class Planet(object):
+    def __init__(self, id_, slots):
+        self.id_ = id_
+        self.slots = slots
+
+# a population slot
+class PopSlot(object):
+    def __init__(self, id_, type_, star):
+        self.id_ = id_
+        # type can be: money, science, material, grey
+        self.type_ = type_
+        # is the slot starred
+        self.star = star
+        # the player having a pop cube on the slot
+        self.pop_owner = None
+
+class Ship(object):
+    def __init__(self, id_):
+        pass
+
+class Research(object):
+    def __init__(self, id_):
+        pass
+
+class ShipUpgrade(object):
+    def __init__(self, id_):
+        pass
+
+class Orbital(object):
+    def __init__(self, id_):
+        pass
+
+class Monolith(object):
+    def __init__(self, id_):
+        pass
+
+class Influence(object):
+    def __init__(self, id_):
+        pass
+
+class SettlerShip(object):
+    def __init__(self, id_):
+        pass
 
     
 
@@ -234,7 +247,7 @@ class Extension(object):
     def __init__(self):
         self.hooks = {}
 
-    def addHooks(self):
+    def add_hooks(self):
         """
         every new rules in the ancient extension is optional, so add
         only hooks corresponding to the rules selected by the players. 

@@ -11,60 +11,49 @@ gm =  request.registry.settings['gm']
 <tr><td colspan="12">My games</td></tr>
 
 <tr>
-<th>&nbsp;</th>
-<th>#</th>
-<th>Name</th>
-<th>Level</th>
-<th># Players</th>
-<th>Start date</th>
-<th>Play as</th>
-<th>Last play</th>
-<th>Turn</th>
-<th>State</th>
-<th>Players</th>
-<th>Extensions</th>
+  <th>&nbsp;</th>
+  <th>#</th>
+  <th>Name</th>
+  <th>Level</th>
+  <th># Players</th>
+  <th>Start date</th>
+  <th>Last play</th>
+  <th>Turn</th>
+  <th>State</th>
+  <th>Players</th>
+  <th>Race</th>
+  <th>Extensions</th>
 </tr>
 
-<!--
-id_
-name
-num_players
-level
-getPlayer(player_id).getRace()
-start_date
-last_play
-cur_turn
-cur_state
-players_ids
-extensions
--->
-
 % if len(my_games) != 0:
-
   % for game in my_games:
 
 <%
-  web_player = gm.get_player(game.creator_id)
-  game_player = game.cur_state.get_player(game.creator_id)
+    web_player = gm.get_player(game.creator_id)
+    game_player = game.cur_state.get_player(game.creator_id)
 %>
 
 <tr>
-<td rowspan="${game.num_players}">&nbsp;</td>
-<td rowspan="${game.num_players}">${game.id_}</td>
-<td rowspan="${game.num_players}">${game.name}</td>
-<td rowspan="${game.num_players}">${game.level}</td>
-<td rowspan="${game.num_players}">${game.num_players}</td>
-<td rowspan="${game.num_players}">${game.start_date}</td>
-<td rowspan="${game.num_players}">${game.last_play}</td>
-<td rowspan="${game.num_players}">${game.cur_turn}</td>
-<td rowspan="${game.num_players}">${game.cur_state}</td>
-<td>${web_player.name}</td>
-<td>${game_player.race}</td>
-<td rowspan="${game.num_players}">/
-    % for ext in game.extensions.values():
-${ext} /
+  <td rowspan="${game.num_players}">&nbsp;</td>
+  <td rowspan="${game.num_players}">${game.id_}</td>
+  <td rowspan="${game.num_players}">${game.name}</td>
+  <td rowspan="${game.num_players}">${game.level}</td>
+  <td rowspan="${game.num_players}">${game.num_players}</td>
+  <td rowspan="${game.num_players}">${game.start_date}</td>
+  <td rowspan="${game.num_players}">${game.last_play}</td>
+  <td rowspan="${game.num_players}">${game.cur_state.cur_turn}</td>
+  <td rowspan="${game.num_players}">${game.cur_state.id_}</td>
+  <td>${web_player.name}</td>
+    % if game_player is None:
+  <td>unassigned yet</td>
+    % else:
+  <td>${game_player.race}</td>
+    % endif
+  <td rowspan="${game.num_players}">/
+    % for ext in game.extensions:
+      ${ext} /
     % endfor
-</td>
+  </td>
 </tr>
 
     ## loop through remaining players
@@ -72,18 +61,22 @@ ${ext} /
       % if i < len(game.players_ids):
         % if game.players_ids[i] != game.creator_id:
 <%
-          web_player = gm.get_player(game.players_ids[i])
-          game_player = game.get_player(game.players_ids[i])
+            web_player = gm.get_player(game.players_ids[i])
+            game_player = game.cur_state.get_player(game.players_ids[i])
 %>
 <tr>
-<td>${web_player.name}</td>
-<td>${game_player.race}</td>
+  <td>${web_player.name}</td>
+          % if game_player is None:
+  <td>unassigned yet</td>
+          % else:
+  <td>${game_player.race}</td>
+          % endif
 </tr>
         % endif
       % else:
 <tr>
-<td><a>Join</a></td>
-<td></td>
+  <td>not joined</td>
+  <td>unassigned yet</td>
 </tr>
       % endif
     % endfor
@@ -91,5 +84,8 @@ ${ext} /
   % endfor
 
 % else:
-You currently have no games in progress.
+<tr>
+  <td colspan="12">You currently have no games in progress.</td>
+</tr>
 % endif
+</table>

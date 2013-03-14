@@ -62,17 +62,17 @@ class ViewTests(unittest.TestCase):
 
         for test in tests_true:
             # debug
-#            if test not in res:
-#                print('tests_true')
-#                print('test=[{}]'.format(test))
-#                print('res=[{}]'.format(res))
+            if test not in res:
+                print('tests_true')
+                print('test=[{}]'.format(test))
+                print('res=[{}]'.format(res))
             self.assertTrue(test in res)
         for test in tests_false:
             # debug
-#            if test in res:
-#                print('tests_false')
-#                print('test=[{}]'.format(test))
-#                print('res=[{}]'.format(res))
+            if test in res:
+                print('tests_false')
+                print('test=[{}]'.format(test))
+                print('res=[{}]'.format(res))
             self.assertTrue(test not in res)
 
     def test_view_home(self):
@@ -155,6 +155,14 @@ class ViewTests(unittest.TestCase):
                             'timezone': '120'},
                       follow=False)
 
+        # test POST non valid email
+        self.gen_test('/register',
+                      tests_true=['Not a valid email.'],
+                      post={'name': 'new', 'email': 'invalid test.com@',
+                            'password': 'qwerty01', 'password2': 'qwerty01',
+                            'timezone': '120'},
+                      follow=False)
+
         # test POST duplicate name/email
         self.gen_test('/register',
                       tests_true=['Already registered name or email.'],
@@ -187,6 +195,14 @@ class ViewTests(unittest.TestCase):
         # auth
         self.gen_test('/login', tests_true=['Login successful.'],
                       post={'email': 'test@test.com', 'password': 'test'})
+
+        # test POST invalid email
+        self.gen_test('/editprofile', tests_true=['Not a valid email.'],
+                      post={'email': 'invalid test.com@',
+                            'password': 'qwerty01',
+                            'password2': 'qwerty01',
+                            'timezone': 600},
+                      follow=False)
 
         # test POST password != password2
         self.gen_test('/editprofile', tests_true=['Passwords not identical.'],
@@ -283,7 +299,7 @@ class ViewTests(unittest.TestCase):
                       follow=False)
 
         # test POST db error
-        engine.db.change_db_fail(True)
+        engine.db.change_db_fail(True, 'create_game')
         self.gen_test('/creategame',
                       tests_true=['Ooops... Error writing game in database.'],
                       post={'name': "Test game",
@@ -341,7 +357,20 @@ class ViewTests(unittest.TestCase):
                       tests_true=['Ooops... Error reading games from database'])
         engine.db.change_db_fail(False)
 
-        # test display 'my test game'
+        # test display 'my test game' and 'my in-progress test game'
         self.gen_test('/mygames',
-                      tests_true=['You currently have no games in progress'],
+                      tests_true=['my test game', 'my in-progress test game'],
+                      follow=False)
+
+        # create new player and check that he has no games
+        self.gen_test('/logout', tests_true=['Logout successful.'])
+        self.gen_test('/register',
+                      tests_true=['Player successfuly created.'],
+                      post={'name': 'new', 'email': 'new@test.com',
+                            'password': 'qwerty01', 'password2': 'qwerty01',
+                            'timezone': '120'})
+        self.gen_test('/login', tests_true=['Login successful.'],
+                        post={'email': 'new@test.com', 'password': 'qwerty01'})
+        self.gen_test('/mygames',
+                      tests_true=['You currently have no games in progress.'],
                       follow=False)

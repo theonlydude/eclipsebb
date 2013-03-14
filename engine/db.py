@@ -22,7 +22,7 @@ import pickle
 import sqlite3
 import tempfile
 import engine.util
-from engine.web_types import Player, Timezones, Game
+from engine.web_types import WebPlayer, Timezones, Game
 
 # status returned by all db methods
 DB_STATUS = engine.util.enum(OK=0, ERROR=1, CONST_ERROR=2, NO_ROWS=3)
@@ -64,6 +64,7 @@ class DBInterface(object):
      OK: if no error
      ERROR: if database write/read error
      CONST_ERROR: if database constraints error
+     NO_ROWS: if the query returned no rows
     data: optionnal returned data depending on method
     """
     def __init__(self, test_mode=False):
@@ -495,7 +496,7 @@ class DBInterface(object):
                                  '{}').format(player_id))
                 return (DB_STATUS.NO_ROWS, None)
             else:
-                return (DB_STATUS.OK, Player(*result))
+                return (DB_STATUS.OK, WebPlayer(*result))
         finally:
             cursor.close()
             db.close()
