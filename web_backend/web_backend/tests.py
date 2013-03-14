@@ -23,6 +23,7 @@ import engine.db
 # TODO::normalize method/class naming convention
 # TODO::unittest for db and game_manager (goal 100% coverage)
 # TODO::use mock sqlite3 for db unittest (see 'import as' and mock)
+# TODO::check validity of data input (tz_id, email, ...)
 
 class ViewTests(unittest.TestCase):
     """ functionnal tests of the views """

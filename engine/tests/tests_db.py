@@ -19,8 +19,9 @@ from datetime import datetime
 import logging
 import unittest
 import engine.db
+from engine.data_types import GameState
 from engine.db import DB_STATUS
-from engine.web_types import Game
+from engine.web_types import Game, Player
 
 class DBTests(unittest.TestCase):
     def setUp(self):
@@ -75,6 +76,7 @@ class DBTests(unittest.TestCase):
         ended_gid = 3
         not_a_gid = 666
 
+        ## get the players who joined the test game 1
         # in the 'not started' test game, players are : [1, 2]
         status, players_ids = self.db.get_game_players_ids(not_started_gid)
         self.assertEqual(status, DB_STATUS.OK)
@@ -82,6 +84,7 @@ class DBTests(unittest.TestCase):
         players_ids.sort()
         self.assertEqual([1, 2], players_ids)
 
+        ## get the extensions associated with the test game 1
         # in the 'not started' test game, extensions are:
         # {2: 'developments', 4: 'secret_world', 6: 'ancient_hives'}
         status, game_exts = self.db.get_game_ext(not_started_gid)
@@ -90,16 +93,19 @@ class DBTests(unittest.TestCase):
                                      4: 'secret_world',
                                      6: 'ancient_hives'})
 
+        ## get the states played in the game 1
         # no states, not implemented yet
         status, states_ids = self.db.get_game_states_ids(not_started_gid)
         self.assertEqual(status, DB_STATUS.OK)
         self.assertEqual(states_ids, [])
 
+        ## get the not started test games
         # the 'not started' test game is public
         status, games_ids = self.db.get_pub_priv_games_ids()
         self.assertEqual(status, DB_STATUS.OK)
         self.assertEqual(games_ids, ([not_started_gid], []))
 
+        ## list not ended games joined by player 1
         player_1_id = 1
         player_2_id = 2
         # the test player has join all the test games : not started,
@@ -108,7 +114,8 @@ class DBTests(unittest.TestCase):
         self.assertEqual(status, DB_STATUS.OK)
         games_ids.sort()
         self.assertEqual(games_ids, [1, 2])
-        
+
+        ## test loading games
         # game loading
         status, game = self.db.load_game(not_a_gid)
         self.assertEqual(status, DB_STATUS.NO_ROWS)
@@ -138,18 +145,20 @@ class DBTests(unittest.TestCase):
         self.assertEqual(game.state_ids, [])
         self.assertEqual(game.last_valid_state_id, None)
 
+        ## test updating a game
         # update game
         game.last_play = datetime.now()
         game.cur_state_id = 666
         status, dummy = self.db.save_game(game)
         self.assertEqual(status, DB_STATUS.OK)
 
+        ## then reloaded the saved game
         status, game_mod = self.db.load_game(in_progress_gid)
         self.assertEqual(status, DB_STATUS.OK)
         self.assertEqual(game.last_play, game_mod.last_play)
         self.assertEqual(game.cur_state_id, game_mod.cur_state_id)
 
-        # create game
+        ## test creating a new game
         new_game = Game(creator_id=1, name='game creation test', level=3,
                         private=True, password='test', num_players=3,
                         extensions={1: 'rare_technologies', 11: 'alliances'})
@@ -157,6 +166,7 @@ class DBTests(unittest.TestCase):
         status, new_game = self.db.create_game(new_game, players_ids)
         self.assertEqual(status, DB_STATUS.OK)
 
+        ## then loading it
         status, new_game_reload = self.db.load_game(new_game.id_)
         self.assertEqual(status, DB_STATUS.OK)
         self.assertEqual(new_game.id_, new_game_reload.id_)
@@ -189,14 +199,83 @@ class DBTests(unittest.TestCase):
         load_layer
         get_players_infos
         """
-        pass
+        ## test creating new player
+        player = Player(None, 'new test player', 'new_test@test.com',
+                        120, 'Test01!')
+        status, player_id = self.db.create_player(player.name,
+                                                  player.email,
+                                                  player.password,
+                                                  player.tz_id)
+        self.assertEqual(status, DB_STATUS.OK)
+        self.assertNotEqual(player_id, None)
+        player.id_ = player_id
+
+        ## test creating duplicate player with existing player in db
+        status, player_id = self.db.create_player(name='test player dup',
+                                                  email='test_dup@test.com',
+                                                  password='Testest01!',
+                                                  tz_id=120)
+        self.assertEqual(status, DB_STATUS.CONST_ERROR)
+        self.assertEqual(player_id, None)
+
+        ## update the new player
+        # dup update
+        to_update={'email': 'test_dup@test.com',
+                   'timezone': 600}
+        status, dummy = self.db.update_player(player, to_update)
+        self.assertEqual(status, DB_STATUS.CONST_ERROR)
+
+        # check player not updated
+        status, reload_player = self.db.load_player(player.id_)
+        player.password = self.db._get_pass_hash(player.email, player.password)
+        self.assertEqual(player.__dict__, reload_player.__dict__)
+
+        # update ok
+        to_update={'email': 'test_update@test.com'}
+        status, dummy = self.db.update_player(player, to_update)
+        self.assertEqual(status, DB_STATUS.OK)
+
+        # check update ok
+        status, reload_player = self.db.load_player(player.id_)
+        self.assertNotEqual(player.__dict__, reload_player.__dict__)
+
+        ## auth player
+        status, player_id = self.db.auth_player('missing@test.com', 'xxx')
+        self.assertEqual(status, DB_STATUS.NO_ROWS)
+        self.assertEqual(player_id, None)
+
+        status, player_id = self.db.auth_player('test@test.com', 'test')
+        self.assertEqual(status, DB_STATUS.OK)
+        self.assertEqual(player_id, 1)
+
+        ## players infos
+        status, players_infos = self.db.get_players_infos()
+        self.assertEqual(status, DB_STATUS.OK)
+        self.assertEqual(players_infos, [(3, 'new test player'),
+                                         (1, 'test player'),
+                                         (2, 'test player dup')])
 
     def test_state(self):
         """ methods tested:
         save_state
         load_state
         """
-        pass
+        # TODO::empty states for now...
+        ## save
+        game_id = 1
+        state = GameState(num_players=2)
+        status, state_id = self.db.save_state(game_id, state)
+        self.assertEqual(status, DB_STATUS.OK)
+        self.assertEqual(state_id, 1)
+
+        ## load
+        status, state_loaded = self.db.load_state(state_id)
+        self.assertEqual(status, DB_STATUS.OK)
+        self.assertEqual(state.__dict__, state_loaded.__dict__)
+
+        status, dummy_state = self.db.load_state(666)
+        self.assertEqual(status, DB_STATUS.NO_ROWS)
+        self.assertEqual(dummy_state, None)
 
     def test_constants(self):
         """ methods tested:

@@ -96,30 +96,30 @@ class Game(object):
         game.last_play = kargs['last_play']
         return game
 
-    def get_state(self, state_id):
-        """ access to previous states """
-        pass
-
-    def json_state_export(self, state_id):
-        """ returns the json string of the state """
-        pass
-
-    def revert_to_state(self, state_id):
-        """
-        in case one the player action is invalid or if a player want
-        to revert its last turn
-        """
-        pass
-
-    def get_history(self, state_id):
-        """
-        returns a string with all the actions done since the beginning
-        of the game up to the current state, in a textual form
-        """
-        pass
-
-    def init_game(self, players):
-        """
-        initalize the first game state
-        """
-        pass
+#    def get_state(self, state_id):
+#        """ access to previous states """
+#        pass
+#
+#    def json_state_export(self, state_id):
+#        """ returns the json string of the state """
+#        pass
+#
+#    def revert_to_state(self, state_id):
+#        """
+#        in case one the player action is invalid or if a player want
+#        to revert its last turn
+#        """
+#        pass
+#
+#    def get_history(self, state_id):
+#        """
+#        returns a string with all the actions done since the beginning
+#        of the game up to the current state, in a textual form
+#        """
+#        pass
+#
+#    def init_game(self, players):
+#        """
+#        initalize the first game state
+#        """
+#        pass
