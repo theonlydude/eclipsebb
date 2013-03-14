@@ -36,12 +36,10 @@ class Timezones(object):
         self.dict_tz = OrderedDict(timezones)
 
 class Game(object):
-    """
-    The base game offers functions to query the game state, to apply
+    """ The base game offers functions to query the game state, to apply
     player actions and to export a game state in json.
     It offers hook for extensions.
-    """
-    """
+
     can be instanciate two way:
      -when creating a new game from scratch
      -when loading from the DB

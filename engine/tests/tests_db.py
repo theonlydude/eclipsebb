@@ -16,7 +16,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 from datetime import datetime
-import logging
 import unittest
 import engine.db
 from engine.data_types import GameState
@@ -24,10 +23,13 @@ from engine.db import DB_STATUS
 from engine.web_types import Game, WebPlayer
 
 class DBTests(unittest.TestCase):
+    """ test all the methods defined by the db to access it """
     def setUp(self):
+        """ create a new test db for each test """
         self.db = engine.db.DBInterface(True)
 
     def tearDown(self):
+        """ delete the temporary db """
         del self.db
 
     def test_db_fail(self):
@@ -36,26 +38,26 @@ class DBTests(unittest.TestCase):
         fail
         """
         # standard call, no error
-        status, data = self.db.get_extensions_infos()
+        status, _ = self.db.get_extensions_infos()
         self.assertEqual(status, DB_STATUS.OK)
 
         # set all db methods to fail
         engine.db.change_db_fail(True)
-        status, data = self.db.get_extensions_infos()
+        status, _ = self.db.get_extensions_infos()
         self.assertEqual(status, DB_STATUS.ERROR)
 
         # check no longer fail
         engine.db.change_db_fail(False)
-        status, data = self.db.get_extensions_infos()
+        status, _ = self.db.get_extensions_infos()
         self.assertEqual(status, DB_STATUS.OK)
 
         # set 'get_timezones' db method to fail
         engine.db.change_db_fail(True, 'get_timezones')
         # get_extensions_infos ok
-        status, data = self.db.get_extensions_infos()
+        status, _ = self.db.get_extensions_infos()
         self.assertEqual(status, DB_STATUS.OK)
         # get_timezones error
-        status, data = self.db.get_timezones()
+        status, _ = self.db.get_timezones()
         self.assertEqual(status, DB_STATUS.ERROR)
         engine.db.change_db_fail(False)
 
@@ -73,7 +75,7 @@ class DBTests(unittest.TestCase):
         # the games ids in the test db
         not_started_gid = 1
         in_progress_gid = 2
-        ended_gid = 3
+        # ended_gid = 3
         not_a_gid = 666
 
         ## get the players who joined the test game 1
@@ -220,8 +222,7 @@ class DBTests(unittest.TestCase):
 
         ## update the new player
         # dup update
-        to_update={'email': 'test_dup@test.com',
-                   'timezone': 600}
+        to_update = {'email': 'test_dup@test.com', 'timezone': 600}
         status, dummy = self.db.update_player(player, to_update)
         self.assertEqual(status, DB_STATUS.CONST_ERROR)
 
@@ -231,7 +232,7 @@ class DBTests(unittest.TestCase):
         self.assertEqual(player.__dict__, reload_player.__dict__)
 
         # update ok
-        to_update={'email': 'test_update@test.com'}
+        to_update = {'email': 'test_update@test.com'}
         status, dummy = self.db.update_player(player, to_update)
         self.assertEqual(status, DB_STATUS.OK)
 
@@ -314,7 +315,8 @@ class DBTests(unittest.TestCase):
                           (-300, 'UTC-05:00 (EST - Eastern Standard Time)'),
                           (-270, 'UTC-04:30 (Venezuela)'),
                           (-240, 'UTC-04:00 (AST - Atlantic Standard Time)'),
-                          (-210, 'UTC-03:30 (NST - Newfoundland Standard Time)'),
+                          (-210, ('UTC-03:30 (NST - Newfoundland Standard '
+                                  'Time)')),
                           (-180, 'UTC-03:00 (Saint-Pierre and Miquelon'),
                           (-120, 'UTC-02:00 (Fernando de Noronha)'),
                           (-60, 'UTC-01:00 (Cape Verde)'),

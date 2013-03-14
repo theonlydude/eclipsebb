@@ -17,13 +17,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import unittest
 from pyramid import testing
-from pyramid.httpexceptions import HTTPFound
 import engine.db
-
-# TODO::normalize method/class naming convention
-# TODO::unittest for db and game_manager (goal 100% coverage)
-# TODO::use mock sqlite3 for db unittest (see 'import as' and mock)
-# TODO::check validity of data input (tz_id, email, ...)
 
 class ViewTests(unittest.TestCase):
     """ functionnal tests of the views """
@@ -48,7 +42,7 @@ class ViewTests(unittest.TestCase):
         # manualy delete 'gm' to close temporary db file used by tests
         del self.testapp.app.registry._settings['gm']
 
-    def gen_test(self, route, tests_true=[], tests_false=[],
+    def _gen_test(self, route, tests_true=[], tests_false=[],
                  post=None, follow=True):
         """ test generator """
         if post is not None:
@@ -85,27 +79,27 @@ class ViewTests(unittest.TestCase):
     def test_view_logout(self):
         """ test by using TestApp """
         # log in sucessfully
-        self.gen_test('/login', tests_true=['Login successful.'],
+        self._gen_test('/login', tests_true=['Login successful.'],
                         post={'email': 'test@test.com', 'password': 'test'})
 
         # test success logout
-        self.gen_test('/logout', tests_true=['Logout successful.'])
+        self._gen_test('/logout', tests_true=['Logout successful.'])
 
         # test unsuccess logout
-        self.gen_test('/logout', tests_true=['Not logged in.'])
+        self._gen_test('/logout', tests_true=['Not logged in.'])
 
     def test_view_login(self):
         """ test by using TestApp """
         # test get page leads to home
-        self.gen_test('/login', tests_true=['/register', '/login'])
+        self._gen_test('/login', tests_true=['/register', '/login'])
 
         # test POST empty email/password
-        self.gen_test('/login', tests_true=['Enter both email and password.'],
+        self._gen_test('/login', tests_true=['Enter both email and password.'],
                       post={'email': '', 'password': ''})
 
         # test POST db error
         engine.db.change_db_fail(True)
-        self.gen_test('/login',
+        self._gen_test('/login',
                       tests_true=[('Ooops... Error reading player '
                                    'authentification')],
                       tests_false=['Login successful.'],
@@ -113,12 +107,12 @@ class ViewTests(unittest.TestCase):
         engine.db.change_db_fail(False)
 
         # test POST wrong email/password
-        self.gen_test('/login', tests_true=['Unknown email or password.'],
+        self._gen_test('/login', tests_true=['Unknown email or password.'],
                       post={'email': 'test@test.com', 'password': 'qwerty01'})
 
         # test POST valid email/password - db error loading player
         engine.db.change_db_fail(True, 'load_player')
-        self.gen_test('/login',
+        self._gen_test('/login',
                       tests_true=[('Ooops... Error reading player '
                                    'from database.')],
                       tests_false=['Login successful.'],
@@ -126,29 +120,29 @@ class ViewTests(unittest.TestCase):
         engine.db.change_db_fail(False)
 
         # test POST valid email/password - loading player ok
-        self.gen_test('/login', tests_true=['Login successful.'],
+        self._gen_test('/login', tests_true=['Login successful.'],
                       post={'email': 'test@test.com', 'password': 'test'})
 
         # test already logged
-        self.gen_test('/login', tests_true=['Already logged in as '])
+        self._gen_test('/login', tests_true=['Already logged in as '])
 
     def test_view_register(self):
         """ test by using TestApp """
         # test already logged
-        self.gen_test('/login', tests_true=['Login successful.'],
+        self._gen_test('/login', tests_true=['Login successful.'],
                       post={'email': 'test@test.com', 'password': 'test'})
 
-        self.gen_test('/register', tests_true=['Already logged in as '])
+        self._gen_test('/register', tests_true=['Already logged in as '])
 
-        self.gen_test('/logout', tests_true=['Logout successful.'])
+        self._gen_test('/logout', tests_true=['Logout successful.'])
 
         # test POST empty name/email
-        self.gen_test('/register',
+        self._gen_test('/register',
                       tests_true=['Enter name, email, password and timezone.'],
                       post={'email': 'newplayer@test.com'}, follow=False)
 
         # test POST password != password2
-        self.gen_test('/register',
+        self._gen_test('/register',
                       tests_true=['Passwords not identical.'],
                       post={'name': 'new', 'email': 'new@test.com',
                             'password': 'qwerty01', 'password2': 'qwerty02',
@@ -156,7 +150,7 @@ class ViewTests(unittest.TestCase):
                       follow=False)
 
         # test POST non valid email
-        self.gen_test('/register',
+        self._gen_test('/register',
                       tests_true=['Not a valid email.'],
                       post={'name': 'new', 'email': 'invalid test.com@',
                             'password': 'qwerty01', 'password2': 'qwerty01',
@@ -164,7 +158,7 @@ class ViewTests(unittest.TestCase):
                       follow=False)
 
         # test POST duplicate name/email
-        self.gen_test('/register',
+        self._gen_test('/register',
                       tests_true=['Already registered name or email.'],
                       post={'name': 'test player', 'email': 'test@test.com',
                             'password': 'qwerty01', 'password2': 'qwerty01',
@@ -173,7 +167,7 @@ class ViewTests(unittest.TestCase):
 
         # test POST db write error
         engine.db.change_db_fail(True)
-        self.gen_test('/register',
+        self._gen_test('/register',
                       tests_true=['Ooops... Error writing player in database.'],
                       post={'name': 'new', 'email': 'new@test.com',
                             'password': 'qwerty01', 'password2': 'qwerty01',
@@ -181,7 +175,7 @@ class ViewTests(unittest.TestCase):
         engine.db.change_db_fail(False)
 
         # test POST creation ok
-        self.gen_test('/register',
+        self._gen_test('/register',
                       tests_true=['Player successfuly created.'],
                       post={'name': 'new', 'email': 'new@test.com',
                             'password': 'qwerty01', 'password2': 'qwerty01',
@@ -190,14 +184,14 @@ class ViewTests(unittest.TestCase):
     def test_view_editprofile(self):
         """ test by using TestApp """
         # test not auth, display home
-        self.gen_test('/editprofile', tests_true=['New user ?'], follow=False)
+        self._gen_test('/editprofile', tests_true=['New user ?'], follow=False)
 
         # auth
-        self.gen_test('/login', tests_true=['Login successful.'],
+        self._gen_test('/login', tests_true=['Login successful.'],
                       post={'email': 'test@test.com', 'password': 'test'})
 
         # test POST invalid email
-        self.gen_test('/editprofile', tests_true=['Not a valid email.'],
+        self._gen_test('/editprofile', tests_true=['Not a valid email.'],
                       post={'email': 'invalid test.com@',
                             'password': 'qwerty01',
                             'password2': 'qwerty01',
@@ -205,7 +199,7 @@ class ViewTests(unittest.TestCase):
                       follow=False)
 
         # test POST password != password2
-        self.gen_test('/editprofile', tests_true=['Passwords not identical.'],
+        self._gen_test('/editprofile', tests_true=['Passwords not identical.'],
                       post={'email': 'test@test.com',
                             'password': 'qwerty01',
                             'password2': 'qwerty02',
@@ -213,20 +207,20 @@ class ViewTests(unittest.TestCase):
                       follow=False)
 
         # test POST nothing to update
-        self.gen_test('/editprofile', tests_true=['Nothing to update.'],
+        self._gen_test('/editprofile', tests_true=['Nothing to update.'],
                       post={'email': 'test@test.com',
                             'timezone': 600},
                       follow=False)
 
         # test POST update email already in use
-        self.gen_test('/editprofile', tests_true=['Email already in use.'],
+        self._gen_test('/editprofile', tests_true=['Email already in use.'],
                       post={'email': 'test_dup@test.com',
                             'timezone': 600},
                       follow=False)
 
         # test POST db write error
         engine.db.change_db_fail(True)
-        self.gen_test('/editprofile',
+        self._gen_test('/editprofile',
                       tests_true=['Ooops... Error writing player in database.'],
                       post={'email': 'new_test@test.com',
                             'timezone': 600})
@@ -234,7 +228,7 @@ class ViewTests(unittest.TestCase):
 
         # test POST update all, reload fail
         engine.db.change_db_fail(True, 'load_player')
-        self.gen_test('/editprofile',
+        self._gen_test('/editprofile',
                       tests_true=["Player successfuly updated.",
                                   ("Ooops... Error reading player "
                                    "from database")],
@@ -245,7 +239,7 @@ class ViewTests(unittest.TestCase):
         engine.db.change_db_fail(False)
 
         # test POST update all
-        self.gen_test('/editprofile',
+        self._gen_test('/editprofile',
                       tests_true=['Player successfuly updated.'],
                       post={'email': 'test@test.com',
                             'password': 'test',
@@ -254,26 +248,26 @@ class ViewTests(unittest.TestCase):
     def test_view_create_game(self):
         """ test by using TestApp """
         # test not auth, display home
-        self.gen_test('/creategame', tests_true=['New user ?'], follow=False)
+        self._gen_test('/creategame', tests_true=['New user ?'], follow=False)
 
         # auth
-        self.gen_test('/login', tests_true=['Login successful.'],
+        self._gen_test('/login', tests_true=['Login successful.'],
                       post={'email': 'test@test.com', 'password': 'test'})
 
         # test display 
-        self.gen_test('/creategame',
+        self._gen_test('/creategame',
                       tests_true=['Create new game'],
                       follow=False)
 
         # test display can't get players infos
         engine.db.change_db_fail(True)
-        self.gen_test('/creategame',
+        self._gen_test('/creategame',
                       tests_true=[('Ooops... Error reading players infos '
                                    'from database.')])
         engine.db.change_db_fail(False)
 
         # test POST missing game_name
-        self.gen_test('/creategame',
+        self._gen_test('/creategame',
                       tests_true=["Enter game name, #players and level."],
                       post={'num_players': '2',
                             'player0': '1',
@@ -284,7 +278,7 @@ class ViewTests(unittest.TestCase):
                       follow=False)
 
         # test POST passwords not identical
-        self.gen_test('/creategame',
+        self._gen_test('/creategame',
                       tests_true=['Passwords not identical.'],
                       post={'name': "Test game",
                             'num_players': '2',
@@ -300,7 +294,7 @@ class ViewTests(unittest.TestCase):
 
         # test POST db error
         engine.db.change_db_fail(True, 'create_game')
-        self.gen_test('/creategame',
+        self._gen_test('/creategame',
                       tests_true=['Ooops... Error writing game in database.'],
                       post={'name': "Test game",
                             'num_players': '2',
@@ -309,7 +303,7 @@ class ViewTests(unittest.TestCase):
         engine.db.change_db_fail(False)
 
         # test POST ok
-        self.gen_test('/creategame',
+        self._gen_test('/creategame',
                       tests_true=['Game successfuly created.'],
                       post={'name': "Test game",
                             'num_players': '2',
@@ -321,20 +315,20 @@ class ViewTests(unittest.TestCase):
     def test_view_joingame(self):
         """ test by using TestApp """
         # test not auth, display home
-        self.gen_test('/joingame', tests_true=['New user ?'], follow=False)
+        self._gen_test('/joingame', tests_true=['New user ?'], follow=False)
 
         # auth
-        self.gen_test('/login', tests_true=['Login successful.'],
+        self._gen_test('/login', tests_true=['Login successful.'],
                       post={'email': 'test@test.com', 'password': 'test'})
 
         # test DB not ok 
         engine.db.change_db_fail(True)
-        self.gen_test('/joingame',
+        self._gen_test('/joingame',
                       tests_true=['Ooops... Error reading games from database'])
         engine.db.change_db_fail(False)
 
         # test display 'my test game'
-        self.gen_test('/joingame',
+        self._gen_test('/joingame',
                       tests_true=['my test game',
                                   ('There is currently no private game '
                                    'awaiting for players.')],
@@ -345,32 +339,32 @@ class ViewTests(unittest.TestCase):
     def test_view_mygames(self):
         """ test by using TestApp """
         # test not auth, display home
-        self.gen_test('/mygames', tests_true=['New user ?'], follow=False)
+        self._gen_test('/mygames', tests_true=['New user ?'], follow=False)
 
         # auth
-        self.gen_test('/login', tests_true=['Login successful.'],
+        self._gen_test('/login', tests_true=['Login successful.'],
                       post={'email': 'test@test.com', 'password': 'test'})
 
         # test DB not ok 
         engine.db.change_db_fail(True)
-        self.gen_test('/mygames',
+        self._gen_test('/mygames',
                       tests_true=['Ooops... Error reading games from database'])
         engine.db.change_db_fail(False)
 
         # test display 'my test game' and 'my in-progress test game'
-        self.gen_test('/mygames',
+        self._gen_test('/mygames',
                       tests_true=['my test game', 'my in-progress test game'],
                       follow=False)
 
         # create new player and check that he has no games
-        self.gen_test('/logout', tests_true=['Logout successful.'])
-        self.gen_test('/register',
+        self._gen_test('/logout', tests_true=['Logout successful.'])
+        self._gen_test('/register',
                       tests_true=['Player successfuly created.'],
                       post={'name': 'new', 'email': 'new@test.com',
                             'password': 'qwerty01', 'password2': 'qwerty01',
                             'timezone': '120'})
-        self.gen_test('/login', tests_true=['Login successful.'],
+        self._gen_test('/login', tests_true=['Login successful.'],
                         post={'email': 'new@test.com', 'password': 'qwerty01'})
-        self.gen_test('/mygames',
+        self._gen_test('/mygames',
                       tests_true=['You currently have no games in progress.'],
                       follow=False)
