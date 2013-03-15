@@ -23,32 +23,19 @@ from engine.db import DBInterface, DB_STATUS
 import engine.util
 from engine.web_types import Game
 
-# TODO::do we need it ?
-class StatesManager(object):
-    """
-    store the states, accessed by their id
-    """
-    def __init__(self):
-        self.states = {}
-
-    def get(self, id_):
-        """ return a state """
-        if id_ in self.states:
-            return self.states[id_]
-        else:
-            return None
-
-    def add(self, state):
-        pass
-
 class GamesManager(object):
     """
     As we can have multiple games running at the same time we need an
     object to handle them.
-    The entry point for the webserver.
+    The entry point for the webserver view.
     Save the games in the database after each turn.
     Load running games from the database (after a program stop).
     Allow to browse ended games.
+
+    attributes:
+      self._games (dict): the games, accessed by their id
+      self._web_players (dict): the players, accessed by their id
+      self._db (DBInterface object): the DB interface object
     """
     def __init__(self, test_mode=False):
         share_path = os.path.expanduser('~/.local/share/eclipsebb/')
@@ -60,16 +47,13 @@ class GamesManager(object):
         logging.basicConfig(filename=log_file_name, level=logging.DEBUG)
         logging.info('Starting')
 
-        # the games, accessed by their id
         # TODO::limit the number of games loaded in memory at the same
         # time to avoid too important memory consumption
         self._games = {}
-
-        # the players, accessed by their id
         self._web_players = {}
-
         self._db = DBInterface(test_mode)
 
+        # load constants from DB
         (status_ext, self.ext_infos) = self._db.get_extensions_infos()
         (status_tz, self.timezones) = self._db.get_timezones()
         # if a database error occurs so early, just quit
@@ -109,11 +93,12 @@ class GamesManager(object):
         return (status == DB_STATUS.OK)
 
     @engine.util.log
-    def load_game(self, game_id):
+    def _load_game(self, game_id):
         """ load a game from the database """
         if game_id not in self._games:
             # load game
             (status, game) = self._db.load_game(game_id)
+            # TODO::handle NO_ROWS and ERROR
             if status != DB_STATUS.OK:
                 logging.error("Can't load game with id {}".format(game_id))
                 return None
@@ -159,7 +144,7 @@ class GamesManager(object):
         memory
         """
         if game_id not in self._games:
-            if not self.load_game(game_id):
+            if not self._load_game(game_id):
                 return None
         return self._games[game_id]
 
@@ -204,9 +189,15 @@ class GamesManager(object):
         return (True, pub_games, priv_games)
 
     @engine.util.log
-    def load_player(self, player_id):
-        """ load a player from the database """
+    def _load_player(self, player_id):
+        """ load a player from the database.
+        args: player_id (int)
+        return:
+         ERROR: None
+         OK: player_id (int)
+        """
         (status, player) = self._db.load_player(player_id)
+        # TODO::handle NO_ROWS and ERROR
         if status != DB_STATUS.OK:
             return None
         else:
@@ -216,17 +207,25 @@ class GamesManager(object):
     @engine.util.log
     def get_player(self, player_id):
         """ load player if not present then return it.
-        return None if error loading player """
+        args: player_id (int)
+        return:
+         ERROR: None
+         OK: Player object
+        """
         if player_id not in self._web_players:
-            if self.load_player(player_id) is None:
+            if self._load_player(player_id) is None:
                 return None
 
         return self._web_players[player_id]
 
     @engine.util.log
     def get_players_infos(self):
-        """ return all players id and name
-        return None if error loading players infos """
+        """ get minimal infos (id and name) on all registered players.
+        args: None
+        return:
+         ERROR: None
+         OK: [(id_1, name_1), ..., (id_n, name_n)] ordered by name
+        """
         (status, players_infos) = self._db.get_players_infos()
         if status != DB_STATUS.OK:
             return None
@@ -235,7 +234,12 @@ class GamesManager(object):
 
     @engine.util.log
     def auth_player(self, email, password):
-        """ return (db_ok, auth_ok, player_id) """
+        """ check player password with the one encrypted in database.
+        args:
+         email (str): user email
+         password (str): plain password
+        return: (db_ok (bool), auth_ok (bool), player_id (int))
+        """
         (status, id_) = self._db.auth_player(email, password)
         if status == DB_STATUS.OK:
             return (True, True, id_)
@@ -245,23 +249,42 @@ class GamesManager(object):
             return (False, None, None)
 
     @engine.util.log
-    def create_player(self, name, email, password, tz):
-        """ return (db_ok, dup_ok, player_id) """
-        (status, id_) = self._db.create_player(name, email, password, tz)
+    def create_player(self, name, email, password, tz_id):
+        """ create a new player in the db.
+        args:
+         name (str): player name
+         email (str): player email
+         password (str): player plain password
+         tz_id (int): id of the player timezone
+        return: (db_ok (bool), dup_ok (bool), player_id (int))
+        """
+        (status, id_) = self._db.create_player(name, email, password, tz_id)
         if status == DB_STATUS.OK:
             return (True, True, id_)
-        elif status == DB_STATUS.CONST_ERROR:
+        elif status == DB_STATUS.DUP_ERROR:
             return (True, False, None)
         else:
             return (False, None, None)
 
     @engine.util.log
     def update_player(self, player, to_update):
-        """ return (db_ok, upd_ok) """
+        """ update player email/password/tz_id in the db.
+        args:
+         player: unmodified Player object to update.
+         to_update (dict): possible keys:
+          email (str): new player email
+          password (str): new player password
+          timezone (int): new timezone id
+        return: (db_ok (bool), upd_ok (bool))
+        """
         (status, dummy) = self._db.update_player(player, to_update)
         if status == DB_STATUS.OK:
-            return (True, True)
-        elif status == DB_STATUS.CONST_ERROR:
+            # update player in memory
+            if self._load_player(player.id_) is None:
+                return (False, True)
+            else:
+                return (True, True)
+        elif status == DB_STATUS.DUP_ERROR:
             return (True, False)
         else:
-            return(False, None)
+            return(False, False)

@@ -20,7 +20,7 @@ from datetime import datetime
 from engine.data_types import GameState
 
 class WebPlayer(object):
-    """ Map infos stored in database """
+    """ Map the infos stored in database """
     def __init__(self, *args):
         (self.id_,
          self.name,
@@ -29,19 +29,20 @@ class WebPlayer(object):
          self.password) = args
 
 class Timezones(object):
-    """ cache tz, allow easy access to tz """
+    """ cache tz, allow easy access to tz.
+
+    attributes:
+      self.list_tz: timezones arg
+      self.dict_tz: {id_1 (int): name_1 (str),
+                     ...,
+                     id_n: name_n} with keys ordered by id
+    """
     def __init__(self, timezones):
         """
         args:
           timezones: [(id_1 (int), name_1 (str)),
                       ...,
                       (id_n, name_n)] ordered by id
-
-        attributes:
-          self.list_tz: timezones arg
-          self.dict_tz: {id_1 (int): name_1 (str),
-                         ...,
-                         id_n: name_n} with keys ordered by id
         """
         self.list_tz = timezones
         self.dict_tz = OrderedDict(timezones)
@@ -103,7 +104,23 @@ class Game(object):
         game.cur_state_id = kargs['cur_state_id']
         game.start_date = kargs['start_date']
         game.last_play = kargs['last_play']
+
         return game
+
+    def load_cur_state(self):
+        """ when loading a game from the DB the current state is not loaded,
+        it must be manually loaded later by the games manager.
+        args: None
+        return:
+         True: loading successful
+         False: error loading/missing state
+        """
+        if self.cur_state_id == -1:
+            return True
+
+        # load current state from DB
+        # TODO::if db error or missing state ??
+        return True
 
 #    def get_state(self, state_id):
 #        """ access to previous states """

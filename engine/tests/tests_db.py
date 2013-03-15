@@ -256,14 +256,14 @@ class DBTests(unittest.TestCase):
                                                   email='test_dup@test.com',
                                                   password='Testest01!',
                                                   tz_id=120)
-        self.assertEqual(status, DB_STATUS.CONST_ERROR)
+        self.assertEqual(status, DB_STATUS.DUP_ERROR)
         self.assertEqual(player_id, None)
 
         ## update the new player
         # dup update
         to_update = {'email': 'test_dup@test.com', 'timezone': 600}
         status, dummy = self.db.update_player(player, to_update)
-        self.assertEqual(status, DB_STATUS.CONST_ERROR)
+        self.assertEqual(status, DB_STATUS.DUP_ERROR)
 
         # check player not updated
         status, reload_player = self.db.load_player(player.id_)

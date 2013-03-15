@@ -173,7 +173,7 @@ def view_login(request):
             (db_ok, auth_ok, player_id) = gm.auth_player(email, password)
             if db_ok and auth_ok:
                 # load player
-                if gm.load_player(player_id) is not None:
+                if gm.get_player(player_id) is not None:
                     # update session
                     request.session['auth'] = True
                     request.session['player_id'] = player_id
@@ -298,18 +298,18 @@ def view_editprofile(request):
             request.session.flash('Nothing to update.')
         else:
             (db_ok, upd_ok) = gm.update_player(player, to_update)
-            if db_ok and upd_ok:
+            if upd_ok:
                 request.session.flash('Player successfuly updated.')
-                # update player in gm
-                if gm.load_player(player.id_):
+                if db_ok:
                     return HTTPFound(location=request.route_url('home'))
                 else:
                     logging.error(("Can't reload player {} from "
                                    "database").format(player.id_))
                     return db_read_error(request, 'player')
-            elif db_ok and not upd_ok:
-                request.session.flash('Email already in use.')
             else:
-                return db_write_error(request, 'player')
+                if db_ok:
+                    request.session.flash('Email already in use.')
+                else:
+                    return db_write_error(request, 'player')
 
     return return_values

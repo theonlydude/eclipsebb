@@ -25,7 +25,7 @@ import engine.util
 from engine.web_types import WebPlayer, Timezones, Game
 
 # status returned by all db methods
-DB_STATUS = engine.util.enum(OK=0, ERROR=1, CONST_ERROR=2, NO_ROWS=3)
+DB_STATUS = engine.util.enum(OK=0, ERROR=1, DUP_ERROR=2, NO_ROWS=3)
 
 # allow some queries to fail for unittest
 _fail = False
@@ -40,8 +40,8 @@ def change_db_fail(activate, filter_=None):
 
 def fail(fun):
     """
-    a decorator allowing db calls to return read/write failure
-    can filter on function name
+    a decorator allowing db calls to return read/write failure.
+    can filter on function name.
     """
     def failer(*args, **kargs):
         """ returned function """
@@ -73,7 +73,7 @@ class DBInterface(object):
     enum DB_STATUS:
      OK: if no error
      ERROR: if database write/read error
-     CONST_ERROR: if database constraints error
+     DUP_ERROR: if database constraints error
      NO_ROWS: if the query returned no rows
     data: optionnal returned data depending on method
 
@@ -126,9 +126,10 @@ class DBInterface(object):
         db.close()
         
     def _connect(self):
-        """
-        the detect_types param allow us to store python types directly
-        in the databse.
+        """ the detect_types param of the connect method allow us to store
+        python types directly in the database.
+        args: None
+        return: sqlite3 db object
         """
         if self._unittest:
             return MockDB()
@@ -137,7 +138,12 @@ class DBInterface(object):
                                    detect_types=sqlite3.PARSE_DECLTYPES)
 
     def _get_pass_hash(self, id_, password):
-        """ sha1 of the salted password """
+        """ generate the sha1 hash of the salted password.
+        args:
+          id_ (str): the two first chars of id_ are used for the salt
+         password (str): unencrypted password
+        return: (str) sha1 of the salted password
+        """
         salted_pass = id_[:2] + password
         return hashlib.sha1(salted_pass.encode('utf-8')).hexdigest()
 
@@ -429,7 +435,7 @@ class DBInterface(object):
         except sqlite3.IntegrityError:
             logging.debug('Player ({}, {}) already registered'.format(name,
                                                                       email))
-            return (DB_STATUS.CONST_ERROR, None)
+            return (DB_STATUS.DUP_ERROR, None)
         except sqlite3.DatabaseError:
             logging.exception(('DBException while creating player with '
                                'name {}').format(name))
@@ -478,7 +484,7 @@ class DBInterface(object):
         except sqlite3.IntegrityError:
             logging.debug(('Email ({}, {}) already '
                            'registered').format(player.name, player.email))
-            return (DB_STATUS.CONST_ERROR, None)
+            return (DB_STATUS.DUP_ERROR, None)
         except sqlite3.DatabaseError:
             logging.exception(('DBException while updating player with '
                                'name {}').format(player.name))

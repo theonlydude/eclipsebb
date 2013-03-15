@@ -25,8 +25,8 @@ def log(fun):
         """ inner function """
         global ind_level
         ind_level += 1
-        logging.debug("{}in){} [{}] [[{}]]".format(IND_STR*ind_level, fun,
-                                                   args, kargs))
+        logging.debug("{} in){} [{}] [[{}]]".format(IND_STR*ind_level, fun,
+                                                    args, kargs))
         ret = fun(*args, **kargs)
         logging.debug("{}out){} [{}]".format(IND_STR*ind_level, fun, ret))
         ind_level -= 1
@@ -34,5 +34,7 @@ def log(fun):
     return _logger
 
 def enum(**enums):
-    """ to define c-like enums """
+    """ to define c-like enums.
+    usage: STATUS = engine.util.enum(OK=0, ERROR=1, DUP_ERROR=2, NO_ROWS=3)
+    """
     return type('Enum', (), enums)
