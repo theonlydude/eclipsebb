@@ -149,12 +149,20 @@ class ViewTests(unittest.TestCase):
                             'timezone': '120'},
                       follow=False)
 
-        # test POST non valid email
+        # test POST invalid email
         self._gen_test('/register',
                       tests_true=['Not a valid email.'],
                       post={'name': 'new', 'email': 'invalid test.com@',
                             'password': 'qwerty01', 'password2': 'qwerty01',
                             'timezone': '120'},
+                      follow=False)
+
+        # test POST invalid timezone id
+        self._gen_test('/register',
+                      tests_true=['Not a valid timezone.'],
+                      post={'name': 'new', 'email': 'new@test.com',
+                            'password': 'qwerty01', 'password2': 'qwerty01',
+                            'timezone': '666'},
                       follow=False)
 
         # test POST duplicate name/email

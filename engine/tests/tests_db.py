@@ -16,6 +16,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 from datetime import datetime
+import sqlite3
 import unittest
 import engine.db
 from engine.data_types import GameState
@@ -60,6 +61,14 @@ class DBTests(unittest.TestCase):
         status, _ = self.db.get_timezones()
         self.assertEqual(status, DB_STATUS.ERROR)
         engine.db.change_db_fail(False)
+
+    def test_prod(self):
+        """ test loading the real db """
+        try:
+            db = engine.db.DBInterface()
+            del db
+        except sqlite3.DatabaseError:
+            self.assertTrue(False)
 
     def test_game(self):
         """ methods tested:
@@ -192,7 +201,35 @@ class DBTests(unittest.TestCase):
                          new_game_reload.last_valid_state_id)
         self.assertEqual(new_game.cur_state.__dict__,
                          new_game_reload.cur_state.__dict__)
- 
+
+        # test DB_ERROR
+        self.db.set_unittest_to_fail(True)
+        status, dummy = self.db.create_game(new_game, players_ids)
+        self.assertEqual(status, DB_STATUS.ERROR)
+        self.assertEqual(dummy, None)
+        status, dummy = self.db.save_game(game)
+        self.assertEqual(status, DB_STATUS.ERROR)
+        self.assertEqual(dummy, None)
+        status, dummy = self.db.load_game(in_progress_gid)
+        self.assertEqual(status, DB_STATUS.ERROR)
+        self.assertEqual(dummy, None)
+        status, dummy = self.db.get_game_players_ids(not_started_gid)
+        self.assertEqual(status, DB_STATUS.ERROR)
+        self.assertEqual(dummy, None)
+        status, dummy = self.db.get_game_ext(not_started_gid)
+        self.assertEqual(status, DB_STATUS.ERROR)
+        self.assertEqual(dummy, None)
+        status, dummy = self.db.get_game_states_ids(not_started_gid)
+        self.assertEqual(status, DB_STATUS.ERROR)
+        self.assertEqual(dummy, None)
+        status, dummy = self.db.get_pub_priv_games_ids()
+        self.assertEqual(status, DB_STATUS.ERROR)
+        self.assertEqual(dummy, None)
+        status, dummy = self.db.get_my_games_ids(player_1_id)
+        self.assertEqual(status, DB_STATUS.ERROR)
+        self.assertEqual(dummy, None)
+        self.db.set_unittest_to_fail(False)
+
     def test_player(self):
         """ methods tested:
         create_player
@@ -201,6 +238,8 @@ class DBTests(unittest.TestCase):
         load_layer
         get_players_infos
         """
+        not_a_player_id = 666
+
         ## test creating new player
         player = WebPlayer(None, 'new test player', 'new_test@test.com',
                            120, 'Test01!')
@@ -238,7 +277,18 @@ class DBTests(unittest.TestCase):
 
         # check update ok
         status, reload_player = self.db.load_player(player.id_)
+        self.assertEqual(status, DB_STATUS.OK)
         self.assertNotEqual(player.__dict__, reload_player.__dict__)
+
+        # update empty
+        status, dummy = self.db.update_player(player, {})
+        self.assertEqual(status, DB_STATUS.OK)
+
+        ## load player
+        # load unknow
+        status, dummy = self.db.load_player(not_a_player_id)
+        self.assertEqual(status, DB_STATUS.NO_ROWS)
+        self.assertEqual(dummy, None)
 
         ## auth player
         status, player_id = self.db.auth_player('missing@test.com', 'xxx')
@@ -255,6 +305,28 @@ class DBTests(unittest.TestCase):
         self.assertEqual(players_infos, [(3, 'new test player'),
                                          (1, 'test player'),
                                          (2, 'test player dup')])
+
+        # test DB_ERROR
+        self.db.set_unittest_to_fail(True)
+        status, dummy = self.db.create_player(player.name,
+                                              player.email,
+                                              player.password,
+                                              player.tz_id)
+        self.assertEqual(status, DB_STATUS.ERROR)
+        self.assertEqual(dummy, None)
+        status, dummy = self.db.update_player(player, to_update)
+        self.assertEqual(status, DB_STATUS.ERROR)
+        self.assertEqual(dummy, None)
+        status, dummy = self.db.auth_player('test@test.com', 'test')
+        self.assertEqual(status, DB_STATUS.ERROR)
+        self.assertEqual(dummy, None)
+        status, dummy = self.db.load_player(player.id_)
+        self.assertEqual(status, DB_STATUS.ERROR)
+        self.assertEqual(dummy, None)
+        status, dummy = self.db.get_players_infos()
+        self.assertEqual(status, DB_STATUS.ERROR)
+        self.assertEqual(dummy, None)
+        self.db.set_unittest_to_fail(False)
 
     def test_state(self):
         """ methods tested:
@@ -274,9 +346,20 @@ class DBTests(unittest.TestCase):
         self.assertEqual(status, DB_STATUS.OK)
         self.assertEqual(state.__dict__, state_loaded.__dict__)
 
-        status, dummy_state = self.db.load_state(666)
+        not_a_state_id = 666
+        status, dummy_state = self.db.load_state(not_a_state_id)
         self.assertEqual(status, DB_STATUS.NO_ROWS)
         self.assertEqual(dummy_state, None)
+
+        # test DB_ERROR
+        self.db.set_unittest_to_fail(True)
+        status, dummy = self.db.save_state(game_id, state)
+        self.assertEqual(status, DB_STATUS.ERROR)
+        self.assertEqual(dummy, None)
+        status, dummy = self.db.load_state(state_id)
+        self.assertEqual(status, DB_STATUS.ERROR)
+        self.assertEqual(dummy, None)
+        self.db.set_unittest_to_fail(False)
 
     def test_constants(self):
         """ methods tested:
@@ -349,3 +432,13 @@ class DBTests(unittest.TestCase):
                           (780, 'UTC+13:00 (Tokelau)'),
                           (840, 'UTC+14:00 (Line Islands)')],
                          timezones.list_tz)
+
+        # test DB_ERROR
+        self.db.set_unittest_to_fail(True)
+        status, dummy = self.db.get_extensions_infos()
+        self.assertEqual(status, DB_STATUS.ERROR)
+        self.assertEqual(dummy, None)
+        status, dummy = self.db.get_timezones()
+        self.assertEqual(status, DB_STATUS.ERROR)
+        self.assertEqual(dummy, None)
+        self.db.set_unittest_to_fail(False)

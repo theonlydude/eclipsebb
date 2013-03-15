@@ -215,28 +215,37 @@ def view_register(request):
         return already_logged(request)
 
     gm = request.registry.settings['gm']
+    return_values = {'timezones': gm.timezones}
 
     if request.method == 'POST':
+        # get POST vars
         name = get_post_str(request, 'name')
         email = get_post_str(request, 'email')
         password = get_post_str(request, 'password')
         password2 = get_post_str(request, 'password2')
-        tz = get_post_str(request, 'timezone')
+        tz_id = get_post_int(request, 'timezone')
 
-        if not name or not email or not password or not password2 or not tz:
+        # validate no empty field
+        if not name or not email or not password or not password2 or not tz_id:
             request.session.flash('Enter name, email, password and timezone.')
-            return {'timezones': gm.timezones}
+            return return_values
 
+        # validate passwords
         if password != password2:
             request.session.flash('Passwords not identical.')
-            return {'timezones': gm.timezones}
+            return return_values
 
         # validate the email
         if not validate_email(email):
             request.session.flash('Not a valid email.')
-            return {'timezones': gm.timezones}
+            return return_values
 
-        (db_ok, dup_ok, _) = gm.create_player(name, email, password, tz)
+        # validate timezone
+        if not tz_id in gm.timezones.dict_tz:
+            request.session.flash('Not a valid timezone.')
+            return return_values
+
+        (db_ok, dup_ok, _) = gm.create_player(name, email, password, tz_id)
         if db_ok and dup_ok:
             request.session.flash('Player successfuly created.')
             return HTTPFound(location=request.route_url('home'))
@@ -245,7 +254,7 @@ def view_register(request):
         else:
             return db_write_error(request, 'player')
 
-    return {'timezones': gm.timezones}
+    return return_values
 
 @view_config(route_name='editprofile', renderer='editprofile.mako')
 def view_editprofile(request):

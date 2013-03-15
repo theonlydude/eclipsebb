@@ -55,6 +55,16 @@ def fail(fun):
     failer.__name__ = fun.__name__
     return failer
 
+class MockDB(object):
+    """ mock db object which raises sqlite3.DatabaseError """
+    def cursor(self):
+        """ do not return a cursor, raise an error """
+        raise sqlite3.DatabaseError
+
+    def close(self):
+        """ for the finally close """
+        pass
+
 class DBInterface(object):
     """
     Handles the connections to the database
@@ -66,9 +76,18 @@ class DBInterface(object):
      CONST_ERROR: if database constraints error
      NO_ROWS: if the query returned no rows
     data: optionnal returned data depending on method
+
+    Has two test modes, one for raising sqlite3 exceptions to test the
+    db module itself, and one for returning DB_STATUS.ERROR when
+    calling one of its methods to test the correct behavior of modules
+    calling the db module in case of a db error.
+
+    For tests, use a temporary database filled with test data.
     """
     def __init__(self, test_mode=False):
         """ if the .db file doesn't exist create all the tables in the db """
+        self._unittest = False
+
         if test_mode:
             self._db_tmp_file = tempfile.NamedTemporaryFile()
             self._db_path = self._db_tmp_file.name
@@ -111,13 +130,22 @@ class DBInterface(object):
         the detect_types param allow us to store python types directly
         in the databse.
         """
-        return sqlite3.connect(self._db_path,
-                               detect_types=sqlite3.PARSE_DECLTYPES)
+        if self._unittest:
+            return MockDB()
+        else:
+            return sqlite3.connect(self._db_path,
+                                   detect_types=sqlite3.PARSE_DECLTYPES)
 
     def _get_pass_hash(self, id_, password):
         """ sha1 of the salted password """
         salted_pass = id_[:2] + password
         return hashlib.sha1(salted_pass.encode('utf-8')).hexdigest()
+
+    def set_unittest_to_fail(self, unittest):
+        """ set unittest to raise exception when calling db.cursor()
+        args: unittest (bool)
+        """
+        self._unittest = unittest
 
     @engine.util.log
     @fail
@@ -166,8 +194,10 @@ class DBInterface(object):
         else:
             return (DB_STATUS.OK, game)
         finally:
-            cursor.close()
-            db.close()
+            if 'cursor' in locals():
+                cursor.close()
+            if 'db' in locals():
+                db.close()
 
     @engine.util.log
     @fail
@@ -192,8 +222,10 @@ class DBInterface(object):
         else:
             return (DB_STATUS.OK, None)
         finally:
-            cursor.close()
-            db.close()
+            if 'cursor' in locals():
+                cursor.close()
+            if 'db' in locals():
+                db.close()
 
     @engine.util.log
     @fail
@@ -222,8 +254,10 @@ class DBInterface(object):
             game = Game.from_db(**game_params)
             return (DB_STATUS.OK, game)
         finally:
-            cursor.close()
-            db.close()
+            if 'cursor' in locals():
+                cursor.close()
+            if 'db' in locals():
+                db.close()
 
     @engine.util.log
     @fail
@@ -246,8 +280,10 @@ class DBInterface(object):
             players_ids = [id_[0] for id_ in players_ids]
             return (DB_STATUS.OK, players_ids)
         finally:
-            cursor.close()
-            db.close()
+            if 'cursor' in locals():
+                cursor.close()
+            if 'db' in locals():
+                db.close()
 
     @engine.util.log
     @fail
@@ -271,8 +307,10 @@ class DBInterface(object):
             ext_ids_names = dict(ext_ids_names)
             return (DB_STATUS.OK, ext_ids_names)
         finally:
-            cursor.close()
-            db.close()
+            if 'cursor' in locals():
+                cursor.close()
+            if 'db' in locals():
+                db.close()
 
     @engine.util.log
     @fail
@@ -298,8 +336,10 @@ class DBInterface(object):
             states_ids = [id_[0] for id_ in states_ids]
             return (DB_STATUS.OK, states_ids)
         finally:
-            cursor.close()
-            db.close()
+            if 'cursor' in locals():
+                cursor.close()
+            if 'db' in locals():
+                db.close()
 
     @engine.util.log
     @fail
@@ -331,9 +371,12 @@ class DBInterface(object):
             priv_ids = [id_[0] for id_ in priv_ids]
             return (DB_STATUS.OK, (pub_ids, priv_ids))
         finally:
-            cursor_pub.close()
-            cursor_priv.close()
-            db.close()
+            if 'cursor_pub' in locals():
+                cursor_pub.close()
+            if 'cursor_priv' in locals():
+                cursor_priv.close()
+            if 'db' in locals():
+                db.close()
 
     @engine.util.log
     @fail
@@ -360,8 +403,10 @@ class DBInterface(object):
             game_ids = [id_[0] for id_ in game_ids]
             return (DB_STATUS.OK, game_ids)
         finally:
-            cursor.close()
-            db.close()
+            if 'cursor' in locals():
+                cursor.close()
+            if 'db' in locals():
+                db.close()
 
     @engine.util.log
     @fail
@@ -394,8 +439,10 @@ class DBInterface(object):
             player_id = cursor.lastrowid
             return (DB_STATUS.OK, player_id)
         finally:
-            cursor.close()
-            db.close()
+            if 'cursor' in locals():
+                cursor.close()
+            if 'db' in locals():
+                db.close()
 
     @engine.util.log
     @fail
@@ -439,8 +486,10 @@ class DBInterface(object):
         else:
             return (DB_STATUS.OK, None)
         finally:
-            cursor.close()
-            db.close()
+            if 'cursor' in locals():
+                cursor.close()
+            if 'db' in locals():
+                db.close()
 
     @engine.util.log
     @fail
@@ -469,8 +518,10 @@ class DBInterface(object):
                 player_id = result[0]
                 return (DB_STATUS.OK, player_id)
         finally:
-            cursor.close()
-            db.close()
+            if 'cursor' in locals():
+                cursor.close()
+            if 'db' in locals():
+                db.close()
 
     @engine.util.log
     @fail
@@ -498,9 +549,10 @@ class DBInterface(object):
             else:
                 return (DB_STATUS.OK, WebPlayer(*result))
         finally:
-            cursor.close()
-            db.close()
-
+            if 'cursor' in locals():
+                cursor.close()
+            if 'db' in locals():
+                db.close()
 
     @engine.util.log
     @fail
@@ -520,8 +572,10 @@ class DBInterface(object):
         else:
             return (DB_STATUS.OK, cursor.fetchall())
         finally:
-            cursor.close()
-            db.close()
+            if 'cursor' in locals():
+                cursor.close()
+            if 'db' in locals():
+                db.close()
 
     @engine.util.log
     @fail
@@ -552,8 +606,10 @@ class DBInterface(object):
             state_id = cursor.lastrowid
             return (DB_STATUS.OK, state_id)
         finally:
-            cursor.close()
-            db.close()
+            if 'cursor' in locals():
+                cursor.close()
+            if 'db' in locals():
+                db.close()
 
     @engine.util.log
     @fail
@@ -578,8 +634,10 @@ class DBInterface(object):
             pic_state = data[0]
             return (DB_STATUS.OK, pickle.loads(pic_state))
         finally:
-            cursor.close()
-            db.close()
+            if 'cursor' in locals():
+                cursor.close()
+            if 'db' in locals():
+                db.close()
 
     @engine.util.log
     @fail
@@ -600,8 +658,10 @@ class DBInterface(object):
         else:
             return (DB_STATUS.OK, cursor.fetchall())
         finally:
-            cursor.close()
-            db.close()
+            if 'cursor' in locals():
+                cursor.close()
+            if 'db' in locals():
+                db.close()
 
     @engine.util.log
     @fail
@@ -622,5 +682,7 @@ class DBInterface(object):
             tz = cursor.fetchall()
             return (DB_STATUS.OK, Timezones(tz))
         finally:
-            cursor.close()
-            db.close()
+            if 'cursor' in locals():
+                cursor.close()
+            if 'db' in locals():
+                db.close()

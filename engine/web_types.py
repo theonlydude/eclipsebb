@@ -31,7 +31,18 @@ class WebPlayer(object):
 class Timezones(object):
     """ cache tz, allow easy access to tz """
     def __init__(self, timezones):
-        """ get [(-2, 'blabla'), (-1, 'blibli') ] """
+        """
+        args:
+          timezones: [(id_1 (int), name_1 (str)),
+                      ...,
+                      (id_n, name_n)] ordered by id
+
+        attributes:
+          self.list_tz: timezones arg
+          self.dict_tz: {id_1 (int): name_1 (str),
+                         ...,
+                         id_n: name_n} with keys ordered by id
+        """
         self.list_tz = timezones
         self.dict_tz = OrderedDict(timezones)
 
