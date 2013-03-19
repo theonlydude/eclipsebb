@@ -1,5 +1,5 @@
 """
-Copyright (C) 2012  Emmanuel Gorse, Adrien Durand
+Copyright (C) 2012-2013  manu, adri
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -85,6 +85,7 @@ class DBTests(unittest.TestCase):
         not_started_gid = 1
         in_progress_gid = 2
         # ended_gid = 3
+        private_gid = 4
         not_a_gid = 666
 
         ## get the players who joined the test game 1
@@ -114,17 +115,17 @@ class DBTests(unittest.TestCase):
         # the 'not started' test game is public
         status, games_ids = self.db.get_pub_priv_games_ids()
         self.assertEqual(status, DB_STATUS.OK)
-        self.assertEqual(games_ids, ([not_started_gid], []))
+        self.assertEqual(games_ids, ([not_started_gid], [private_gid]))
 
         ## list not ended games joined by player 1
         player_1_id = 1
         player_2_id = 2
         # the test player has join all the test games : not started,
-        # in progress and ended        
+        # in progress, ended and the private one
         status, games_ids = self.db.get_my_games_ids(player_1_id)
         self.assertEqual(status, DB_STATUS.OK)
         games_ids.sort()
-        self.assertEqual(games_ids, [1, 2])
+        self.assertEqual(games_ids, [1, 2, 4])
 
         ## test loading games
         # game loading
@@ -160,14 +161,19 @@ class DBTests(unittest.TestCase):
         # update game
         game.last_play = datetime.now()
         game.cur_state_id = 666
-        status, dummy = self.db.save_game(game)
+        status, _ = self.db.save_game(game)
         self.assertEqual(status, DB_STATUS.OK)
 
-        ## then reloaded the saved game
+        ## then reloading the saved game
         status, game_mod = self.db.load_game(in_progress_gid)
         self.assertEqual(status, DB_STATUS.OK)
         self.assertEqual(game.last_play, game_mod.last_play)
         self.assertEqual(game.cur_state_id, game_mod.cur_state_id)
+
+        # updating a game with wrong id
+        game_mod.id_ = 666
+        status, _ = self.db.save_game(game_mod)
+        self.assertEqual(status, DB_STATUS.NO_ROWS)
 
         ## test creating a new game
         new_game = Game(creator_id=1, name='game creation test', level=3,

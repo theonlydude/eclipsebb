@@ -1,5 +1,5 @@
 """
-Copyright (C) 2012  Emmanuel Gorse, Adrien Durand
+Copyright (C) 2012-2013  manu, adri
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -16,9 +16,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 import logging
-import sys
 import os
 import os.path
+import sys
 from engine.db import DBInterface, DB_STATUS
 import engine.util
 from engine.web_types import Game
@@ -66,15 +66,27 @@ class GamesManager(object):
 
     @engine.util.log
     def create_game(self, creator_id, name, level, private, password,
-                    num_players, players, extensions):
-        """
-        Instanciate a new game
-        return True if success, False otherwise
+                    num_players, players_ids, extensions):
+        """ Instanciate a new game. Save it to the database to get its uniq id.
+        Store it in self._games. Do not return the created game nor its id, the
+        game will be visible to the player in the 'my games' view.
+
+        args:
+         creator_id (int): id of the player creating the game
+         name (str): name of the game given by the creator
+         level (int): difficulty (1-4)
+         private (bool): True if password protected to join
+         password (str): the password to join if private
+         num_players (int): number of players in the game
+         players_ids [int, ..., int]: list of players id already added to the
+                                      game, includes the creator_id
+         extensions {id (int) -> name (str)}: activated extensions
+        return: db_ok (bool)
         """
         game = Game(creator_id, name, level, private, password,
                     num_players, extensions)
 
-        (status, game) = self._db.create_game(game, players)
+        (status, game) = self._db.create_game(game, players_ids)
 
         if status != DB_STATUS.OK:
             logging.error(("Error inserting game {!r} by {} in "
@@ -87,104 +99,140 @@ class GamesManager(object):
         return True
         
     @engine.util.log
-    def save_game(self, game_id):
-        """ save a game to the database """
-        (status, dummy) = self._db.save_game(self._games[game_id])
-        return (status == DB_STATUS.OK)
+    def save_game(self, game):
+        """ update an existing game into the database.
+        args: game (Game object): the game to save
+        return: db_ok (bool), upd_ok (bool)
+        """
+        (status, _) = self._db.save_game(game)
+        return (status != DB_STATUS.ERROR, status != DB_STATUS.NO_ROWS)
 
     @engine.util.log
-    def _load_game(self, game_id):
-        """ load a game from the database """
-        if game_id not in self._games:
-            # load game
-            (status, game) = self._db.load_game(game_id)
-            # TODO::handle NO_ROWS and ERROR
-            if status != DB_STATUS.OK:
-                logging.error("Can't load game with id {}".format(game_id))
-                return None
+    def load_game(self, game_id, force=False):
+        """ load a game from the database if not already in memory.
+        fully load a game, i.e. also load:
+         -players
+         -extensions ids
+         -states ids
+         -current state
 
-            # load players
-            (status, players_ids) = self._db.get_game_players_ids(game_id)
-            if status != DB_STATUS.OK:
-                logging.error(("Can't get players ids for game with id "
-                               "{}").format(game_id))
-                return None
+        args:
+         game_id (int): id of the game to load
+         force (bool): to force the loading of the game from db even if the game
+                       is already in memory
+        return:
+         OK: (db_ok (bool): True, fully loaded Game object)
+         NO_GAME: (db_ok: True, None)
+         ERROR: (db_ok: False, None)
+        """
+        if not force and game_id in self._games:
+            return (True, self._games[game_id])
 
-            game.players_ids = players_ids
-            for player_id in players_ids:
-                if self.get_player(player_id) == None:
-                    logging.error(("Can't load player with id "
-                                  "{}").format(player_id))
-                    return None
+        # load game
+        (status, game) = self._db.load_game(game_id)
+        # TODO::handle NO_ROWS and ERROR separately
+        if status == DB_STATUS.ERROR:
+            logging.error("Error loading game {}".format(game_id))
+            return (False, None)
+        elif status == DB_STATUS.NO_ROWS:
+            logging.warning("Game {} not found".format(game_id))
+            return (True, None)
 
-            # load extensions
-            (status, ext) = self._db.get_game_ext(game_id)
-            if status != DB_STATUS.OK:
-                logging.error(("Can't load extensions for game with id "
-                               "{}").format(game_id))
-                return None
-            game.extensions = ext
+        # load players
+        (status, players_ids) = self._db.get_game_players_ids(game_id)
+        if status != DB_STATUS.OK:
+            logging.error(("Error loading players ids for game "
+                           "{}").format(game_id))
+            return (False, None)
 
-            # load states
-            (status, states_ids) = self._db.get_game_states_ids(game_id)
-            if status != DB_STATUS.OK:
-                logging.error(("Can't load states for game with id "
-                               "{}").format(game_id))
-                return None
-            game.states_ids = states_ids
+        game.players_ids = players_ids
+        for player_id in players_ids:
+            if self.get_player(player_id) == None:
+                logging.error(("Error loading player {} for game "
+                               "{}").format(player_id, game_id))
+                return (False, None)
 
-            self._games[game_id] = game
+        # load extensions
+        (status, ext) = self._db.get_game_ext(game_id)
+        if status != DB_STATUS.OK:
+            logging.error(("Error loading extensions for game "
+                           "{}").format(game_id))
+            return (False, None)
+        game.extensions = ext
 
-        return self._games[game_id]
+        # load states
+        (status, states_ids) = self._db.get_game_states_ids(game_id)
+        if status != DB_STATUS.OK:
+            logging.error(("Error loading states ids for game "
+                           "{}").format(game_id))
+            return (False, None)
+        game.states_ids = states_ids
+
+        # TODO::load current state
+
+        self._games[game_id] = game
+
+        return (True, self._games[game_id])
 
     @engine.util.log
     def get_game(self, game_id):
         """
-        Returns the game, load it from database if not already in
-        memory
+        Returns the game, do NOT load it from database if not already in memory.
+        The caller must have call load_game manually before.
+
+        args: game_id (int)
+        return:
+         OK: Game object whose id is game_id
+         ERROR: Raise a KeyError exception
         """
-        if game_id not in self._games:
-            if not self._load_game(game_id):
-                return None
         return self._games[game_id]
 
     @engine.util.log
     def get_my_games(self, player_id):
         """ return the games the player is currently playing
-        even the non started ones """
+        even the non started ones.
+        args: player_id (int)
+        return: (db_ok (bool), [game_1, ..., game_n])
+        """
         status, my_games_ids = self._db.get_my_games_ids(player_id)
         if status != DB_STATUS.OK:
             return (False, None)
 
-        my_games = [self.get_game(id_) for id_ in my_games_ids]
-        if None in my_games:
-            return (False, None)
+        my_games = []
+        for id_ in my_games_ids:
+            db_ok, game = self.load_game(id_)
+            if db_ok and game is not None:
+                my_games.append(game)
 
         return (True, my_games)
 
     @engine.util.log
-    def get_ended_games(self, player_id):
-        """ return the completed games the player played in """
-        pass
-
-    @engine.util.log
     def get_pub_priv_games(self):
-        """ return (db_ok, pubs, privs) """
+        """ return the not yet started, not ended games, public and private.
+        args: None
+        return:
+         OK: (db_ok (bool): True,
+              pubs ([game_1, ..., game_n]),
+              privs ([game_1, ..., game_n]))
+         ERROR: (db_ok (bool): False, None, None)
+        """
         status, ids = self._db.get_pub_priv_games_ids()
         if status == DB_STATUS.ERROR:
             return (False, None, None)
 
         pub_ids, priv_ids = ids
-        if pub_ids is None or priv_ids is None:
-            return (False, None, None)
 
-        pub_games = [self.get_game(id_) for id_ in pub_ids]
-        if None in pub_games:
-            return (False, None, None)
+        pub_games = []
+        for id_ in pub_ids:
+            db_ok, game = self.load_game(id_)
+            if db_ok and game is not None:
+                pub_games.append(game)
 
-        priv_games = [self.get_game(id_) for id_ in priv_ids]
-        if None in priv_games:
-            return (False, None, None)
+        priv_games = []
+        for id_ in priv_ids:
+            db_ok, game = self.load_game(id_)
+            if db_ok and game is not None:
+                priv_games.append(game)
 
         return (True, pub_games, priv_games)
 
@@ -193,8 +241,8 @@ class GamesManager(object):
         """ load a player from the database.
         args: player_id (int)
         return:
-         ERROR: None
          OK: player_id (int)
+         ERROR: None
         """
         (status, player) = self._db.load_player(player_id)
         # TODO::handle NO_ROWS and ERROR
@@ -209,8 +257,8 @@ class GamesManager(object):
         """ load player if not present then return it.
         args: player_id (int)
         return:
-         ERROR: None
          OK: Player object
+         ERROR: None
         """
         if player_id not in self._web_players:
             if self._load_player(player_id) is None:
@@ -223,8 +271,8 @@ class GamesManager(object):
         """ get minimal infos (id and name) on all registered players.
         args: None
         return:
-         ERROR: None
          OK: [(id_1, name_1), ..., (id_n, name_n)] ordered by name
+         ERROR: None
         """
         (status, players_infos) = self._db.get_players_infos()
         if status != DB_STATUS.OK:

@@ -1,5 +1,5 @@
 """
-Copyright (C) 2012  Emmanuel Gorse, Adrien Durand
+Copyright (C) 2012-2013  manu, adri
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -337,12 +337,11 @@ class ViewTests(unittest.TestCase):
 
         # test display 'my test game'
         self._gen_test('/joingame',
-                      tests_true=['my test game',
-                                  ('There is currently no private game '
-                                   'awaiting for players.')],
-                      tests_false=[('There is currently no open game awaiting '
-                                    'for players.')],
-                      follow=False)
+                       tests_true=['my test game'],
+                       tests_false=[('There is currently no open game awaiting '
+                                     'for players.'), ('There is currently no '
+                                     'private game awaiting for players.')],
+                       follow=False)
 
     def test_view_mygames(self):
         """ test by using TestApp """

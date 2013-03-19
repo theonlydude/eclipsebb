@@ -1,5 +1,5 @@
 """
-Copyright (C) 2012  Emmanuel Gorse, Adrien Durand
+Copyright (C) 2012-2013  manu, adri
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -15,6 +15,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
+from datetime import datetime
 import unittest
 import engine.db
 from engine.game_manager import GamesManager
@@ -43,51 +44,37 @@ class GMTests(unittest.TestCase):
         self.gm.debug('nice test debug message')
         # TODO:: self.assert?? for logs
 
-    def test_games(self):
+    def test_load_game(self):
         """ methods tested:
         get_game
-        get_my_games
-        get_ended_games
-        get_pub_priv_games
-        create_game
-        save_game
         load_game
         """
-        return
-
         # the games ids in the test db
         not_started_gid = 1
         in_progress_gid = 2
         # ended_gid = 3
+        private_gid = 4
         not_a_gid = 666
 
-        ## test get_game ok
+        ## test load_game/get_game
+        # test load/get_game ok
+        db_ok, game = self.gm.load_game(in_progress_gid)
+        self.assertTrue(db_ok)
+        self.assertNotEqual(game, None)
 
-        ## list not ended games joined by player 1
-        player_1_id = 1
-        player_2_id = 2
-        # the test player has join all the test games : not started,
-        # in progress and ended        
-        status, games = self.db.get_my_games(player_1_id)
-        self.assertEqual(status, DB_STATUS.OK)
-        games_ids.sort()
-        self.assertEqual(games_ids, [1, 2])
+        game = self.gm.get_game(in_progress_gid)
 
-        ## get the not started test games
-        # the 'not started' test game is public
-        status, games_ids = self.db.get_pub_priv_games_ids()
-        self.assertEqual(status, DB_STATUS.OK)
-        self.assertEqual(games_ids, ([not_started_gid], []))
-
-
-        ## test loading games
-        # game loading
-        status, game = self.db.load_game(not_a_gid)
-        self.assertEqual(status, DB_STATUS.NO_ROWS)
+        # test load/get_game invalid gid
+        db_ok, game = self.gm.load_game(not_a_gid)
+        self.assertTrue(db_ok)
         self.assertEqual(game, None)
 
-        status, game = self.db.load_game(in_progress_gid)
-        self.assertEqual(status, DB_STATUS.OK)
+        with self.assertRaises(KeyError):
+            game = self.gm.get_game(not_a_gid)
+
+        # test load game, check all fields
+        db_ok, game = self.gm.load_game(in_progress_gid)
+        self.assertTrue(db_ok)
         self.assertEqual(game.id_, 2)
         self.assertEqual(game.name, 'my in-progress test game')
         self.assertEqual(game.started, True)
@@ -104,36 +91,144 @@ class GMTests(unittest.TestCase):
         self.assertEqual(game.last_play, last_play)
         self.assertEqual(game.num_players, 2)
         self.assertEqual(game.creator_id, 2)
-        # loaded by the gm, not db, so must be empty
-        self.assertEqual(game.players_ids, [])
-        self.assertEqual(game.extensions, {})
+        self.assertEqual(game.players_ids, [1, 2])
+        self.assertEqual(game.extensions, {1: 'rare_technologies',
+                                           3: 'ancient_worlds',
+                                           5: 'ancient_sdcg'})
         self.assertEqual(game.state_ids, [])
         self.assertEqual(game.last_valid_state_id, None)
+
+    def test_load_game_failed(self):
+        """ methods tested:
+        load_game
+        """
+        in_progress_gid = 2
+
+        # test load/get_game db error
+        engine.db.change_db_fail(True)
+        db_ok, game = self.gm.load_game(in_progress_gid)
+        self.assertFalse(db_ok)
+        self.assertEqual(game, None)
+        engine.db.change_db_fail(False)
+
+        # test load_game, selective db failure
+        engine.db.change_db_fail(True, 'load_player')
+        db_ok, game = self.gm.load_game(in_progress_gid, force=True)
+        self.assertFalse(db_ok)
+        engine.db.change_db_fail(True, 'get_game_players_ids')
+        db_ok, game = self.gm.load_game(in_progress_gid, force=True)
+        self.assertFalse(db_ok)
+        engine.db.change_db_fail(True, 'get_game_ext')
+        db_ok, game = self.gm.load_game(in_progress_gid, force=True)
+        self.assertFalse(db_ok)
+        engine.db.change_db_fail(True, 'get_game_states_ids')
+        db_ok, game = self.gm.load_game(in_progress_gid, force=True)
+        self.assertFalse(db_ok)
+        engine.db.change_db_fail(False)
+
+        # check game has not been loaded
+        with self.assertRaises(KeyError):
+            game = self.gm.get_game(in_progress_gid)
+
+    def test_get_my_games(self):
+        """ methods tested:
+        get_my_games
+        """
+        ## list not ended games joined by player 1
+        player_1_id = 1
+        player_2_id = 2
+        # the test player has join all the test games : not started,
+        # in progress, ended and private.
+        db_ok, games = self.gm.get_my_games(player_1_id)
+        self.assertTrue(db_ok)
+        self.assertEqual(len(games),  3) # not started, in-progress, private
+
+        engine.db.change_db_fail(True)
+        db_ok, games = self.gm.get_my_games(player_1_id)
+        self.assertFalse(db_ok)
+        self.assertEqual(games, None)
+        engine.db.change_db_fail(False)
+
+    def test_get_pub_priv_games(self):
+        """ methods tested:
+        get_pub_priv_games
+        """
+        ## get the not started test games:
+        # -'not started' test game is public
+        # -'private' test game is private
+        db_ok, pub_games, priv_games = self.gm.get_pub_priv_games()
+        self.assertTrue(db_ok)
+        self.assertEqual(len(pub_games), 1)
+        self.assertEqual(len(priv_games), 1)
+
+        engine.db.change_db_fail(True)
+        db_ok, pub_games, priv_games = self.gm.get_pub_priv_games()
+        self.assertFalse(db_ok)
+        self.assertEqual(pub_games, None)
+        self.assertEqual(priv_games, None)
+        engine.db.change_db_fail(False)
+
+    def test_save_game(self):
+        """ methods tested:
+        load_game
+        save_game
+        load_game
+        """
+        in_progress_gid = 2
+
+        # test load/get_game ok
+        db_ok, game = self.gm.load_game(in_progress_gid)
+        self.assertTrue(db_ok)
+        self.assertNotEqual(game, None)
 
         ## test updating a game
         # update game
         game.last_play = datetime.now()
         game.cur_state_id = 666
-        status, dummy = self.db.save_game(game)
-        self.assertEqual(status, DB_STATUS.OK)
+        db_ok, upd_ok = self.gm.save_game(game)
+        self.assertTrue(db_ok)
+        self.assertTrue(upd_ok)
 
-        ## then reloaded the saved game
-        status, game_mod = self.db.load_game(in_progress_gid)
-        self.assertEqual(status, DB_STATUS.OK)
+        ## then reloading the saved game
+        db_ok, game_mod = self.gm.load_game(in_progress_gid)
+        self.assertTrue(db_ok)
+        self.assertNotEqual(game_mod, None)
         self.assertEqual(game.last_play, game_mod.last_play)
         self.assertEqual(game.cur_state_id, game_mod.cur_state_id)
 
-        ## test creating a new game
-        new_game = Game(creator_id=1, name='game creation test', level=3,
-                        private=True, password='test', num_players=3,
-                        extensions={1: 'rare_technologies', 11: 'alliances'})
-        players_ids = [player_1_id, player_2_id]
-        status, new_game = self.db.create_game(new_game, players_ids)
-        self.assertEqual(status, DB_STATUS.OK)
+        # updating a game with wrong id
+        game_mod.id_ = 666
+        db_ok, upd_ok = self.gm.save_game(game_mod)
+        self.assertTrue(db_ok)
+        self.assertFalse(upd_ok)
 
-        ## then loading it
-        status, new_game_reload = self.db.load_game(new_game.id_)
-        self.assertEqual(status, DB_STATUS.OK)
+    def test_create_game(self):
+        """ methods tested:
+        create_game
+        get_game
+        load_game
+        """
+        player_1_id = 1
+        player_2_id = 2
+
+        ## test creating a new game
+        db_ok = self.gm.create_game(creator_id=1, name='game creation test',
+                                    level=3, private=True, password='test',
+                                    num_players=3, players_ids=[player_1_id,
+                                                                player_2_id],
+                                    extensions={1: 'rare_technologies',
+                                                11: 'alliances'})
+        self.assertTrue(db_ok)
+
+        # next game id is 5
+        new_game_id = 5
+        new_game = self.gm.get_game(new_game_id)
+
+        # reload new game from db
+        db_ok, new_game_reload = self.gm.load_game(game_id=5, force=True)
+        self.assertTrue(db_ok)
+
+        # check fields are equal
         self.assertEqual(new_game.id_, new_game_reload.id_)
         self.assertEqual(new_game.name, new_game_reload.name)
         self.assertEqual(new_game.started, new_game_reload.started)
@@ -146,9 +241,8 @@ class GMTests(unittest.TestCase):
         self.assertEqual(new_game.last_play, new_game_reload.last_play)
         self.assertEqual(new_game.num_players, new_game_reload.num_players)
         self.assertEqual(new_game.creator_id, new_game_reload.creator_id)
-        # load_game returns an incomplete game
-        self.assertNotEqual(new_game.players_ids, new_game_reload.players_ids)
-        self.assertNotEqual(new_game.extensions, new_game_reload.extensions)
+        self.assertEqual(new_game.players_ids, new_game_reload.players_ids)
+        self.assertEqual(new_game.extensions, new_game_reload.extensions)
         # TODO::no states for now
         self.assertEqual(new_game.state_ids, new_game_reload.state_ids)
         self.assertEqual(new_game.last_valid_state_id,
@@ -156,14 +250,16 @@ class GMTests(unittest.TestCase):
         self.assertEqual(new_game.cur_state.__dict__,
                          new_game_reload.cur_state.__dict__)
 
-    def test_players(self):
+        # db error creating a new game
+        engine.db.change_db_fail(True)
+        db_ok = self.gm.create_game(1, 'fail test', 3, False, '', 2, [1], {})
+        engine.db.change_db_fail(False)
+        self.assertFalse(db_ok)
+
+    def test_getload_player(self):
         """ methods tested:
         load_player
         get_player
-        get_players_infos
-        auth_player
-        create_player
-        update_player
         """
         player_id_1 = 1
         not_player_id = 666
@@ -182,6 +278,10 @@ class GMTests(unittest.TestCase):
         self.assertEqual(dummy, None)
         engine.db.change_db_fail(False)
 
+    def test_get_players_infos(self):
+        """ method tested:
+        get_players_infos
+        """
         # check ok get_players_infos
         players_infos = self.gm.get_players_infos()
         self.assertEqual(players_infos, [(1, 'test player'),
@@ -192,6 +292,12 @@ class GMTests(unittest.TestCase):
         dummy = self.gm.get_players_infos()
         self.assertEqual(dummy, None)
         engine.db.change_db_fail(False)
+
+    def test_auth_player(self):
+        """ method tested:
+        auth_player
+        """
+        player_id_1 = 1
 
         # check ok auth_player
         email = 'test@test.com'
@@ -215,6 +321,10 @@ class GMTests(unittest.TestCase):
         self.assertEqual(player_id, None)
         engine.db.change_db_fail(False)
 
+    def test_create_player(self):
+        """ methods tested:
+        create_player
+        """
         # check ok create_player
         name = 'new test player'
         email = 'new_test@test.com'
@@ -242,26 +352,30 @@ class GMTests(unittest.TestCase):
         self.assertEqual(player_id, None)
         engine.db.change_db_fail(False)
 
+    def test_update_player(self):
+        """ methods tested:
+        update_player
+        """
         # check ok update_player, ok reload
-        player_id = 3
+        player_id = 1
         player = self.gm.get_player(player_id)
         self.assertNotEqual(player, None)
-        self.assertEqual(player.id_, 3)
+        self.assertEqual(player.id_, 1)
 
-        to_update = {'timezone': 600}
+        to_update = {'timezone': 120}
         db_ok, upd_ok = self.gm.update_player(player, to_update)
         self.assertTrue(db_ok)
         self.assertTrue(upd_ok)
 
         # check duplicate update_player
-        to_update = {'email': 'test@test.com'}
+        to_update = {'email': 'test_dup@test.com'}
         db_ok, upd_ok = self.gm.update_player(player, to_update)
         self.assertTrue(db_ok)
         self.assertFalse(upd_ok)
 
         # check ok update_player, db error reload
         engine.db.change_db_fail(True, 'load_player')
-        to_update = {'timezone': 120}
+        to_update = {'timezone': 600}
         db_ok, upd_ok = self.gm.update_player(player, to_update)
         self.assertFalse(db_ok)
         self.assertTrue(upd_ok)
@@ -269,7 +383,7 @@ class GMTests(unittest.TestCase):
 
         # check db error update_player
         engine.db.change_db_fail(True)
-        to_update = {'timezone': 600}
+        to_update = {'timezone': 120}
         db_ok, upd_ok = self.gm.update_player(player, to_update)
         self.assertFalse(db_ok)
         self.assertFalse(upd_ok)

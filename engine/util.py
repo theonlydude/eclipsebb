@@ -1,5 +1,5 @@
 """
-Copyright (C) 2012  Emmanuel Gorse, Adrien Durand
+Copyright (C) 2012-2013  manu, adri
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -25,7 +25,7 @@ def log(fun):
         """ inner function """
         global ind_level
         ind_level += 1
-        logging.debug("{} in){} [{}] [[{}]]".format(IND_STR*ind_level, fun,
+        logging.debug("{}in_){} [{}] [[{}]]".format(IND_STR*ind_level, fun,
                                                     args, kargs))
         ret = fun(*args, **kargs)
         logging.debug("{}out){} [{}]".format(IND_STR*ind_level, fun, ret))

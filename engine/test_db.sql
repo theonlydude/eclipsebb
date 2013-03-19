@@ -1,4 +1,4 @@
---Copyright (C) 2012  Emmanuel Gorse, Adrien Durand
+--Copyright (C) 2012-2013  manu, adri
 --
 --This program is free software: you can redistribute it and/or modify
 --it under the terms of the GNU General Public License as published by
@@ -78,3 +78,21 @@ INSERT INTO games_extensions (game_id, extension_id)
 VALUES(3, 3);
 INSERT INTO games_extensions (game_id, extension_id)
 VALUES(3, 5);
+
+-- private not started game
+INSERT INTO games (id, name, started, ended, level, cur_state_id, private,
+                   password, start_date, last_play, num_players, creator_id)
+VALUES(4, 'my private test game', 0, 0, 3, -1, 1, 'test',
+       '2006-06-06 06:06:06.666666', NULL, 3, 1);
+
+INSERT INTO games_players (game_id, player_id)
+VALUES(4, 1);
+INSERT INTO games_players (game_id, player_id)
+VALUES(4, 2);
+
+INSERT INTO games_extensions (game_id, extension_id)
+VALUES(4, 4);
+INSERT INTO games_extensions (game_id, extension_id)
+VALUES(4, 5);
+INSERT INTO games_extensions (game_id, extension_id)
+VALUES(4, 6);

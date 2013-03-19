@@ -1,5 +1,5 @@
 """
-Copyright (C) 2012  Emmanuel Gorse, Adrien Durand
+Copyright (C) 2012-2013  manu, adri
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -187,14 +187,14 @@ class DBInterface(object):
                     game.players_ids.append(player_id)
 
             # add game/extensions
-            for ext_id in game.extensions.values():
+            for ext_id in game.extensions:
                 cursor.execute(sql_extension, (game_id, ext_id))
 
             # commit only when everything is inserted
             # TODO::check that there's actually a transaction with sqlite3
             db.commit()
         except sqlite3.DatabaseError:
-            logging.exception(("Can't create game {!r} by "
+            logging.exception(("Error creating game {!r} by "
                                "{}").format(game.name, game.creator_id))
             return (DB_STATUS.ERROR, None)
         else:
@@ -220,13 +220,16 @@ class DBInterface(object):
 
             cursor.execute(sql, (game.started, game.ended, game.cur_state_id,
                                  game.last_play, game.id_))
-            db .commit()
+            db.commit()
         except sqlite3.DatabaseError:
             logging.exception(("Can't save game {!r} "
                                "(id{})").format(game.name, game.id_))
             return (DB_STATUS.ERROR, None)
         else:
-            return (DB_STATUS.OK, None)
+            if cursor.rowcount == 0:
+                return (DB_STATUS.NO_ROWS, None)
+            else:
+                return (DB_STATUS.OK, None)
         finally:
             if 'cursor' in locals():
                 cursor.close()
@@ -257,6 +260,7 @@ class DBInterface(object):
             game_params = cursor.fetchone()
             if game_params is None:
                 return (DB_STATUS.NO_ROWS, None)
+
             game = Game.from_db(**game_params)
             return (DB_STATUS.OK, game)
         finally:
