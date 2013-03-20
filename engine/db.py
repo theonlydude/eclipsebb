@@ -513,7 +513,8 @@ class DBInterface(object):
         args:
           email (str)
           password (str): plain password
-        return: player_id (int) if ok, None otherwise
+        return: db_status,
+                player_id (int) if ok, None otherwise
         """
         sha1_pass = self._get_pass_hash(email, password)
         sql = 'SELECT id FROM players WHERE email = ? AND password = ?'
@@ -543,7 +544,7 @@ class DBInterface(object):
     def load_player(self, player_id):
         """" get player info in database, then instanciate a player.
         args: player_id (int)
-        return: player object
+        return: db_status, WebPlayer object
         """
         sql = ('SELECT id, name, email, timezone, password FROM players '
                'WHERE id = ?')
@@ -574,7 +575,8 @@ class DBInterface(object):
     def get_players_infos(self):
         """ get players infos to be displayed in the game creation page
         args: None
-        return: [(id_1, name_1), ..., (id_n, name_n)] ordered by name
+        return: db_status,
+                [(id_1, name_1), ..., (id_n, name_n)] ordered by name
         """
         sql = 'SELECT id, name FROM players ORDER BY name;'
         try:
@@ -604,7 +606,8 @@ class DBInterface(object):
         args:
          game_id (int)
          state (GameState object)
-        return: state_id (int), None if error
+        return: db_status,
+                state_id (int), None if error
         """
         sql = 'INSERT INTO state VALUES (NULL, ?, ?);'
         try:
@@ -631,7 +634,8 @@ class DBInterface(object):
     def load_state(self, state_id):
         """ load state from db and unpickle it
         args: state_id (int)
-        return: GameState object, None if error
+        return: db_status,
+                GameState object, None if error
         """
         sql = 'SELECT pickle FROM state WHERE id = ?;'
         try:
@@ -660,7 +664,8 @@ class DBInterface(object):
         """ get the id, internal name and description of the available
         extensions.
         args: None
-        return: [(id_1, name_1, desc_1), ..., (id_n, name_n, desc_n)] no order
+        return: db_status,
+                [(id_1, name_1, desc_1), ..., (id_n, name_n, desc_n)] no order
         """
         sql = 'SELECT id, name, desc FROM extensions;'
         try:
@@ -683,7 +688,8 @@ class DBInterface(object):
     def get_timezones(self):
         """ get the timezone ids and associated name, ordered by id.
         args: None
-        return: [(tz_id_1, tz_name_n), ..., (tz_id_n, tz_name_n)] ordered by id
+        return: db_status,
+                [(tz_id_1, tz_name_n), ..., (tz_id_n, tz_name_n)] ordered by id
         """
         sql = 'SELECT diff, name FROM timezones ORDER BY diff;'
         try:
