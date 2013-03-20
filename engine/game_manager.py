@@ -130,7 +130,6 @@ class GamesManager(object):
 
         # load game
         (status, game) = self._db.load_game(game_id)
-        # TODO::handle NO_ROWS and ERROR separately
         if status == DB_STATUS.ERROR:
             logging.error("Error loading game {}".format(game_id))
             return (False, None)
@@ -332,7 +331,7 @@ class GamesManager(object):
                 return (False, True)
             else:
                 return (True, True)
-        elif status == DB_STATUS.DUP_ERROR:
+        elif status == DB_STATUS.DUP_ERROR or status == DB_STATUS.NO_ROWS:
             return (True, False)
         else:
             return(False, False)

@@ -50,7 +50,7 @@ gm =  request.registry.settings['gm']
   <td>${game_player.race}</td>
     % endif
   <td rowspan="${game.num_players}">/
-    % for ext in game.extensions:
+    % for ext in game.extensions.values():
       ${ext} /
     % endfor
   </td>

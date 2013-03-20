@@ -290,6 +290,12 @@ class DBTests(unittest.TestCase):
         status, dummy = self.db.update_player(player, {})
         self.assertEqual(status, DB_STATUS.OK)
 
+        # update player with unknown id
+        player.id_ = 666
+        to_update = {'email': 'test_wrong_id@test.com'}
+        status, dummy = self.db.update_player(player, to_update)
+        self.assertEqual(status, DB_STATUS.NO_ROWS)
+
         ## load player
         # load unknow
         status, dummy = self.db.load_player(not_a_player_id)

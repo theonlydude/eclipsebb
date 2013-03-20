@@ -160,17 +160,17 @@ class DBInterface(object):
         args:
           game: incomplete game object, miss players_ids
           players_ids: [id_1 (int), ..., id_2 (int)]
-        return: complete game
+        return: db_status, complete game
         """
         sql_game = ('INSERT INTO games (name, level, private, password, '
                     'start_date, num_players, creator_id) VALUES '
                     '(?, ?, ?, ?, ?, ?, ?);')
         params_game = (game.name, game.level, game.private, game.password,
                        game.start_date, game.num_players, game.creator_id)
-        sql_player = ('insert into games_players (game_id, player_id) '
-                      'values (?, ?);')
-        sql_extension = ('insert into games_extensions (game_id, '
-                         'extension_id) values (?, ?);')
+        sql_player = ('INSERT INTO games_players (game_id, player_id) '
+                      'VALUES (?, ?);')
+        sql_extension = ('INSERT INTO games_extensions (game_id, '
+                         'extension_id) VALUES (?, ?);')
         try:
             db = self._connect()
             cursor = db.cursor()
@@ -191,7 +191,6 @@ class DBInterface(object):
                 cursor.execute(sql_extension, (game_id, ext_id))
 
             # commit only when everything is inserted
-            # TODO::check that there's actually a transaction with sqlite3
             db.commit()
         except sqlite3.DatabaseError:
             logging.exception(("Error creating game {!r} by "
@@ -210,10 +209,10 @@ class DBInterface(object):
     def save_game(self, game):
         """ update the content of the game row.
         args: complete game object
-        return: None
+        return: db_status, None
         """
-        sql = ("update games set started=?, ended=?, cur_state_id=?, "
-               "last_play=? where id = ?")
+        sql = ('UPDATE games SET started=?, ended=?, cur_state_id=?, '
+               'last_play=? WHERE id = ?')
         try:
             db = self._connect()
             cursor = db.cursor()
@@ -227,6 +226,7 @@ class DBInterface(object):
             return (DB_STATUS.ERROR, None)
         else:
             if cursor.rowcount == 0:
+                logging.warning('No rows updated for game {}'.format(game.id_))
                 return (DB_STATUS.NO_ROWS, None)
             else:
                 return (DB_STATUS.OK, None)
@@ -241,11 +241,11 @@ class DBInterface(object):
     def load_game(self, game_id):
         """ load a game from the db
         args: game_id (int)
-        return: incomplete game object
+        return: db_status, incomplete Game object
 
         do not load players ids, extensions ids, states ids
         """
-        sql = 'select * from games where id = ?;'
+        sql = 'SELECT * FROM games WHERE id = ?;'
         try:
             db = self._connect()
             # to have access to returned row as a dict
@@ -274,9 +274,9 @@ class DBInterface(object):
     def get_game_players_ids(self, game_id):
         """ return a list of players ids registered with the game
         args: game_id (int)
-        return: [player_id_1 (int), ..., player_id_n (int)]
+        return: db_status, [player_id_1 (int), ..., player_id_n (int)]
         """
-        sql = "select player_id from games_players where game_id = ?;"
+        sql = "SELECT player_id FROM games_players WHERE game_id = ?;"
         try:
             db = self._connect()
             cursor = db.cursor()
@@ -300,10 +300,10 @@ class DBInterface(object):
     def get_game_ext(self, game_id):
         """ return the activated extensions for the given game
         args: game_id (int)
-        return: dict of {id (int): name (str)}
+        return: db_status, {id (int): name (str)}
         """
-        sql = ('select g.extension_id, e.name from games_extensions g, '
-               'extensions e where g.extension_id = e.id and g.game_id = ?;')
+        sql = ('SELECT g.extension_id, e.name FROM games_extensions g, '
+               'extensions e WHERE g.extension_id = e.id and g.game_id = ?;')
         try:
             db = self._connect()
             cursor = db.cursor()
@@ -327,7 +327,7 @@ class DBInterface(object):
     def get_game_states_ids(self, game_id):
         """ return the list of the game's states ids
         args: game_id (int)
-        return: [state_id_1 (int), state_id_2 (int), ..., state_id_n(int)]
+        return: db_status, [state_id_1 (int), ..., state_id_n(int)]
         """
         sql = ('SELECT id '
                'FROM state '
@@ -358,13 +358,13 @@ class DBInterface(object):
         there's two kind of games, public ones joinable to everyone and
         privates ones joinable only if you have the password.
         args: none
-        return: ([public_game_id_1 (int), ..., public_game_id_n (int)],
-                 [private_game_id_1 (int), ..., private_game_id_n (int)])
+        return: db_status, ([pub_game_id_1 (int), ..., pub_game_id_n (int)],
+                            [priv_game_id_1 (int), ..., priv_game_id_n (int)])
         """
-        sql_pub = ('SELECT id FROM games where started = 0 and private = 0 '
-                   'order by name;')
-        sql_priv = ('SELECT id FROM games where started = 0 and private = 1 '
-                    'order by name;')
+        sql_pub = ('SELECT id FROM games WHERE started = 0 and private = 0 '
+                   'ORDER BY name;')
+        sql_priv = ('SELECT id FROM games WHERE started = 0 and private = 1 '
+                    'ORDER BY  name;')
         try:
             db = self._connect()
             cursor_pub = db.cursor()
@@ -393,7 +393,7 @@ class DBInterface(object):
     def get_my_games_ids(self, player_id):
         """ return the not-finished games joined by the player
         args: player_id (int)
-        return: [game_id_1 (int), ..., game_id_n (int)]
+        return: db_status, [game_id_1 (int), ..., game_id_n (int)]
         """
         sql = ('SELECT gp.game_id '
                'FROM games_players gp, games g '
@@ -427,7 +427,7 @@ class DBInterface(object):
           email (str)
           password (str): plain password
           tz_id (int): see db.sql for the list of valid id
-        return: player_id (int)
+        return: db_status, player_id (int)
         """
         sha1_pass = self._get_pass_hash(email, password)
         sql = 'INSERT INTO players VALUES (NULL, ?, ?, ?, ?)'
@@ -464,7 +464,7 @@ class DBInterface(object):
                      available fields: email (str)
                                        timezone (int): the timezone id
                                        password (str): plain password
-        return: None
+        return: db_status, None
         """
         if 'email' not in to_update:
             to_update['email'] = player.email
@@ -475,8 +475,8 @@ class DBInterface(object):
         else:
             to_update['password'] = self._get_pass_hash(to_update['email'],
                                                         to_update['password'])
-        sql = ('update players set email=?, timezone=?, password=? '
-               'where id = ?;')
+        sql = ('UPDATE players SET email=?, timezone=?, password=? '
+               'WHERE id = ?;')
         try:
             db = self._connect()
             cursor = db.cursor()
@@ -486,15 +486,20 @@ class DBInterface(object):
                                  player.id_))
             db.commit()
         except sqlite3.IntegrityError:
-            logging.debug(('Email ({}, {}) already '
-                           'registered').format(player.name, player.email))
+            logging.info(('Email ({}, {}) already '
+                          'registered').format(player.name, player.email))
             return (DB_STATUS.DUP_ERROR, None)
         except sqlite3.DatabaseError:
             logging.exception(('DBException while updating player with '
                                'name {}').format(player.name))
             return (DB_STATUS.ERROR, None)
         else:
-            return (DB_STATUS.OK, None)
+            if cursor.rowcount == 0:
+                logging.warning(('No rows updated for player {}'
+                                 ''.format(player.id_)))
+                return (DB_STATUS.NO_ROWS, None)
+            else:
+                return (DB_STATUS.OK, None)
         finally:
             if 'cursor' in locals():
                 cursor.close()
@@ -511,7 +516,7 @@ class DBInterface(object):
         return: player_id (int) if ok, None otherwise
         """
         sha1_pass = self._get_pass_hash(email, password)
-        sql = 'select id from players where email = ? and password = ?'
+        sql = 'SELECT id FROM players WHERE email = ? AND password = ?'
         try:
             db = self._connect()
             cursor = db.cursor()
@@ -540,8 +545,8 @@ class DBInterface(object):
         args: player_id (int)
         return: player object
         """
-        sql = ('select id, name, email, timezone, password from players '
-               'where id = ?')
+        sql = ('SELECT id, name, email, timezone, password FROM players '
+               'WHERE id = ?')
         try:
             db = self._connect()
             cursor = db.cursor()
@@ -571,7 +576,7 @@ class DBInterface(object):
         args: None
         return: [(id_1, name_1), ..., (id_n, name_n)] ordered by name
         """
-        sql = 'SELECT id, name FROM players order by name;'
+        sql = 'SELECT id, name FROM players ORDER BY name;'
         try:
             db = self._connect()
             cursor = db.cursor()
@@ -628,7 +633,7 @@ class DBInterface(object):
         args: state_id (int)
         return: GameState object, None if error
         """
-        sql = 'select pickle from state where id = ?;'
+        sql = 'SELECT pickle FROM state WHERE id = ?;'
         try:
             db = self._connect()
             cursor = db.cursor()
@@ -680,7 +685,7 @@ class DBInterface(object):
         args: None
         return: [(tz_id_1, tz_name_n), ..., (tz_id_n, tz_name_n)] ordered by id
         """
-        sql = 'SELECT diff, name FROM timezones order by diff;'
+        sql = 'SELECT diff, name FROM timezones ORDER BY diff;'
         try:
             db = self._connect()
             cursor = db.cursor()

@@ -221,10 +221,11 @@ class ViewTests(unittest.TestCase):
                       follow=False)
 
         # test POST update email already in use
-        self._gen_test('/editprofile', tests_true=['Email already in use.'],
-                      post={'email': 'test_dup@test.com',
-                            'timezone': 600},
-                      follow=False)
+        self._gen_test('/editprofile',
+                       tests_true=['Email already in use or unknown player.'],
+                       post={'email': 'test_dup@test.com',
+                             'timezone': 600},
+                       follow=False)
 
         # test POST db write error
         engine.db.change_db_fail(True)

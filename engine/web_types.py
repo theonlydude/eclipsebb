@@ -78,7 +78,7 @@ class Game(object):
         # the players who joined the game
         self.players_ids = []
         # the activated extensions
-        # extensions is a dict of name->id
+        # extensions is a dict of id->name
         self.extensions = extensions
         # the different states throughout the game
         self.state_ids = []

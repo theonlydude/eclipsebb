@@ -100,7 +100,7 @@ def view_create_game(request):
         for id_, name, _ in gm.ext_infos:
             checked = get_post_bool(request, name)
             if checked:
-                extensions[name] = id_
+                extensions[id_] = name
 
         if not game_name or not num_players or not level:
             request.session.flash("Enter game name, #players and level.")
@@ -308,7 +308,8 @@ def view_editprofile(request):
                     return db_read_error(request, 'player')
             else:
                 if db_ok:
-                    request.session.flash('Email already in use.')
+                    request.session.flash(('Email already in use or '
+                                           'unknown player.'))
                 else:
                     return db_write_error(request, 'player')
 
