@@ -16,6 +16,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 import logging
+import os
+import sys
 
 ind_level = 0
 IND_STR = ' '
@@ -25,10 +27,12 @@ def log(fun):
         """ inner function """
         global ind_level
         ind_level += 1
-        logging.debug("{}in_){} [{}] [[{}]]".format(IND_STR*ind_level, fun,
-                                                    args, kargs))
+
+        app_logger = logging.getLogger('eclipsebb.util')
+        app_logger.debug("{}in_){} [{}] [[{}]]".format(IND_STR*ind_level, fun,
+                                                       args, kargs))
         ret = fun(*args, **kargs)
-        logging.debug("{}out){} [{}]".format(IND_STR*ind_level, fun, ret))
+        app_logger.debug("{}out){} [{}]".format(IND_STR*ind_level, fun, ret))
         ind_level -= 1
         return ret
     return _logger
@@ -38,3 +42,38 @@ def enum(**enums):
     usage: STATUS = engine.util.enum(OK=0, ERROR=1, DUP_ERROR=2, NO_ROWS=3)
     """
     return type('Enum', (), enums)
+
+_already_called = False
+def init_logging(test_mode=False):
+    """ put logging into a log file, use different loggers for the different
+    modules in the application, the main logger beeing called 'eclipsebb'
+    """
+    # called by every tests, but must only be executed once
+    global _already_called
+    if _already_called:
+        return
+    else:
+        _already_called = True
+
+    # directory storing the log file
+    shared_path = os.path.expanduser('~/.local/share/eclipsebb/')
+    try:
+        os.makedirs(shared_path, mode=0o755, exist_ok=True)
+    except OSError:
+        msg = 'Error creating directory {}'.format(shared_path)
+        logging.exception(msg)
+        sys.exit()
+
+    # init eclipsebb main logger
+    logger = logging.getLogger('eclipsebb')
+    logger.setLevel(logging.DEBUG)
+
+    # during tests empty the log file first
+    mode = 'w' if test_mode else 'a'
+    log_file = os.path.join(shared_path, 'eclipsebb.log')
+    file_hand = logging.FileHandler(log_file, mode=mode)
+    file_hand.setLevel(logging.DEBUG)
+
+    form = logging.Formatter('%(asctime)s:%(name)s:%(levelname)s:%(message)s')
+    file_hand.setFormatter(form)
+    logger.addHandler(file_hand)

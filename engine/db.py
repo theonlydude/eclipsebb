@@ -93,18 +93,11 @@ class DBInterface(object):
         self._unittest = False
 
         if test_mode:
+            self._logger.info('Starting in TEST mode.')
+
+            # use temporary file to store the db
             self._db_tmp_file = tempfile.NamedTemporaryFile()
             self._db_path = self._db_tmp_file.name
-
-            # normaly created by gm, but when we only test the db module
-            # we have to make sure that it's created
-            shared_path = os.path.expanduser('~/.local/share/eclipsebb/')
-            try:
-                os.makedirs(shared_path, mode=0o755, exist_ok=True)
-            except OSError:
-                msg = 'Error creating directory {}'.format(shared_path)
-                self._logger.exception(msg)
-                sys.exit()
         else:
             db_file_name = '~/.local/share/eclipsebb/eclipse.db'
             self._db_path = os.path.expanduser(db_file_name)
@@ -117,9 +110,12 @@ class DBInterface(object):
                 sys.exit()
 
             self._logger.info('Database schema created.')
+        else:
+            self._logger.info('Database schema already created.')
 
         if test_mode:
             # add tests data
+            self._logger.info('Populating test database.')
             if not self._exec_script('test_db.sql'):
                 sys.exit()
 
@@ -143,14 +139,14 @@ class DBInterface(object):
             self._logger.exception(msg)
             return False
 
-        self._logger.info('Executing SQL script {}'.format(sql))
+        self._logger.info('Executing SQL script {} in {}'.format(name, cwd))
 
         try:
             db = self._connect()
             db.executescript(sql)
             db.commit()
         except sqlite3.DatabaseError:
-            msg = 'Error executing SQL script {}'.format(sql)
+            msg = 'Error executing SQL script {} in {}'.format(name, cwd)
             self._logger.exception(msg)
             return False
         else:

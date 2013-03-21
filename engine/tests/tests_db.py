@@ -16,12 +16,18 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 from datetime import datetime
+import logging
 import sqlite3
 import unittest
 import engine.db
 from engine.data_types import GameState
 from engine.db import DB_STATUS
 from engine.web_types import Game, WebPlayer
+import engine.util
+
+# init test logging
+engine.util.init_logging(test_mode=True)
+_LOGGER = logging.getLogger('eclipsebb.tests')
 
 class DBTests(unittest.TestCase):
     """ test all the methods defined by the db to access it """
@@ -38,6 +44,8 @@ class DBTests(unittest.TestCase):
         change_db_fail
         fail
         """
+        _LOGGER.info('===BEGIN TEST_DB_FAIL===')
+
         # standard call, no error
         status, _ = self.db.get_extensions_infos()
         self.assertEqual(status, DB_STATUS.OK)
@@ -62,13 +70,19 @@ class DBTests(unittest.TestCase):
         self.assertEqual(status, DB_STATUS.ERROR)
         engine.db.change_db_fail(False)
 
+        _LOGGER.info('===END TEST_DB_FAIL===')
+
     def test_prod(self):
         """ test loading the real db """
+        _LOGGER.info('===BEGIN TEST_PROD===')
+
         try:
             db = engine.db.DBInterface()
             del db
         except sqlite3.DatabaseError:
             self.assertTrue(False)
+
+        _LOGGER.info('===END TEST_PROD===')
 
     def test_game(self):
         """ methods tested:
@@ -81,6 +95,8 @@ class DBTests(unittest.TestCase):
         save_game
         load_game
         """
+        _LOGGER.info('===BEGIN TEST_GAME===')
+
         # the games ids in the test db
         not_started_gid = 1
         in_progress_gid = 2
@@ -236,6 +252,8 @@ class DBTests(unittest.TestCase):
         self.assertEqual(dummy, None)
         self.db.set_unittest_to_fail(False)
 
+        _LOGGER.info('===END TEST_GAME===')
+
     def test_player(self):
         """ methods tested:
         create_player
@@ -244,6 +262,8 @@ class DBTests(unittest.TestCase):
         load_layer
         get_players_infos
         """
+        _LOGGER.info('===BEGIN TEST_PLAYER===')
+
         not_a_player_id = 666
 
         ## test creating new player
@@ -340,11 +360,15 @@ class DBTests(unittest.TestCase):
         self.assertEqual(dummy, None)
         self.db.set_unittest_to_fail(False)
 
+        _LOGGER.info('===END TEST_PLAYER===')
+
     def test_state(self):
         """ methods tested:
         save_state
         load_state
         """
+        _LOGGER.info('===BEGIN TEST_STATE===')
+
         # TODO::empty states for now...
         ## save
         game_id = 1
@@ -373,11 +397,15 @@ class DBTests(unittest.TestCase):
         self.assertEqual(dummy, None)
         self.db.set_unittest_to_fail(False)
 
+        _LOGGER.info('===END TEST_STATE===')
+
     def test_constants(self):
         """ methods tested:
         get_extensions_infos
         get_timezones
         """
+        _LOGGER.info('===BEGIN TEST_CONSTANTS===')
+
         status, ext_infos = self.db.get_extensions_infos()
         self.assertEqual(status, DB_STATUS.OK)
         self.assertEqual([(1, 'rare_technologies', 'enable rare technologies'),
@@ -454,3 +482,5 @@ class DBTests(unittest.TestCase):
         self.assertEqual(status, DB_STATUS.ERROR)
         self.assertEqual(dummy, None)
         self.db.set_unittest_to_fail(False)
+
+        _LOGGER.info('===END TEST_CONSTANTS===')

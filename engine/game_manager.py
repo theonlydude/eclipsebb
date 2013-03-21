@@ -16,8 +16,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 import logging
-import os
-import os.path
 import sys
 from engine.db import DBInterface, DB_STATUS
 import engine.util
@@ -38,14 +36,7 @@ class GamesManager(object):
       self._db (DBInterface object): the DB interface object
     """
     def __init__(self, test_mode=False):
-        share_path = os.path.expanduser('~/.local/share/eclipsebb/')
-        if not os.path.exists(share_path):
-            os.makedirs(share_path, mode=0o755, exist_ok=True)
-
-        # init logging
-        log_file_name = os.path.join(share_path, 'eclipse.log')
-        logging.basicConfig(filename=log_file_name, level=logging.DEBUG)
-        logging.info('Starting')
+        self._logger = logging.getLogger('eclipsebb.gm')
 
         # TODO::limit the number of games loaded in memory at the same
         # time to avoid too important memory consumption
@@ -62,7 +53,7 @@ class GamesManager(object):
 
     def debug(self, msg):
         """ called from mako templates to log stuffs """
-        logging.debug(msg)
+        self._logger.debug(msg)
 
     @engine.util.log
     def create_game(self, creator_id, name, level, private, password,
@@ -89,11 +80,11 @@ class GamesManager(object):
         (status, game) = self._db.create_game(game, players_ids)
 
         if status != DB_STATUS.OK:
-            logging.error(("Error inserting game {!r} by {} in "
-                           "database.").format(name, creator_id))
+            self._logger.error(("Error inserting game {!r} by {} in "
+                                "database.").format(name, creator_id))
             return False
 
-        logging.info("Game {!r} successfully created".format(name))
+        self._logger.info("Game {!r} successfully created".format(name))
 
         self._games[game.id_] = game
         return True
@@ -131,39 +122,39 @@ class GamesManager(object):
         # load game
         (status, game) = self._db.load_game(game_id)
         if status == DB_STATUS.ERROR:
-            logging.error("Error loading game {}".format(game_id))
+            self._logger.error("Error loading game {}".format(game_id))
             return (False, None)
         elif status == DB_STATUS.NO_ROWS:
-            logging.warning("Game {} not found".format(game_id))
+            self._logger.warning("Game {} not found".format(game_id))
             return (True, None)
 
         # load players
         (status, players_ids) = self._db.get_game_players_ids(game_id)
         if status != DB_STATUS.OK:
-            logging.error(("Error loading players ids for game "
-                           "{}").format(game_id))
+            self._logger.error(("Error loading players ids for game "
+                                "{}").format(game_id))
             return (False, None)
 
         game.players_ids = players_ids
         for player_id in players_ids:
             if self.get_player(player_id) == None:
-                logging.error(("Error loading player {} for game "
-                               "{}").format(player_id, game_id))
+                self._logger.error(("Error loading player {} for game "
+                                    "{}").format(player_id, game_id))
                 return (False, None)
 
         # load extensions
         (status, ext) = self._db.get_game_ext(game_id)
         if status != DB_STATUS.OK:
-            logging.error(("Error loading extensions for game "
-                           "{}").format(game_id))
+            self._logger.error(("Error loading extensions for game "
+                                "{}").format(game_id))
             return (False, None)
         game.extensions = ext
 
         # load states
         (status, states_ids) = self._db.get_game_states_ids(game_id)
         if status != DB_STATUS.OK:
-            logging.error(("Error loading states ids for game "
-                           "{}").format(game_id))
+            self._logger.error(("Error loading states ids for game "
+                                "{}").format(game_id))
             return (False, None)
         game.states_ids = states_ids
 

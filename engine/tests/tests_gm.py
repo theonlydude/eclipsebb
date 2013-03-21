@@ -16,9 +16,14 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 from datetime import datetime
+import logging
 import unittest
 import engine.db
 from engine.game_manager import GamesManager
+import engine.util
+
+engine.util.init_logging(test_mode=True)
+_LOGGER = logging.getLogger('eclipsebb.tests')
 
 class GMTests(unittest.TestCase):
     """ test all the methods defined in the GameManager module """
@@ -32,28 +37,36 @@ class GMTests(unittest.TestCase):
 
     def test_db_error_init(self):
         """ test db error in __init__ """
+        _LOGGER.info('===BEGIN TEST_DB_ERROR_INIT===')
+
         engine.db.change_db_fail(True)
         with self.assertRaises(SystemExit):
             self.gm = GamesManager(test_mode=True)
         engine.db.change_db_fail(False)
 
+        _LOGGER.info('===END TEST_DB_ERROR_INIT===')
+
     def test_util(self):
         """ test utilitarian methods:
         debug
         """
+        _LOGGER.info('===BEGIN TEST_UTIL===')
+
         self.gm.debug('nice test debug message')
         # TODO:: self.assert?? for logs
+
+        _LOGGER.info('===END TEST_UTIL===')
 
     def test_load_game(self):
         """ methods tested:
         get_game
         load_game
         """
+        _LOGGER.info('===BEGIN TEST_LOAD_GAME===')
+
         # the games ids in the test db
-        not_started_gid = 1
         in_progress_gid = 2
         # ended_gid = 3
-        private_gid = 4
         not_a_gid = 666
 
         ## test load_game/get_game
@@ -98,10 +111,14 @@ class GMTests(unittest.TestCase):
         self.assertEqual(game.state_ids, [])
         self.assertEqual(game.last_valid_state_id, None)
 
+        _LOGGER.info('===END TEST_LOAD_GAME===')
+
     def test_load_game_failed(self):
         """ methods tested:
         load_game
         """
+        _LOGGER.info('===BEGIN TEST_LOAD_GAME_FAILED===')
+
         in_progress_gid = 2
 
         # test load/get_game db error
@@ -130,13 +147,16 @@ class GMTests(unittest.TestCase):
         with self.assertRaises(KeyError):
             game = self.gm.get_game(in_progress_gid)
 
+        _LOGGER.info('===END TEST_LOAD_GAME_FAILED===')
+
     def test_get_my_games(self):
         """ methods tested:
         get_my_games
         """
+        _LOGGER.info('===BEGIN TEST_GET_MY_GAMES===')
+
         ## list not ended games joined by player 1
         player_1_id = 1
-        player_2_id = 2
         # the test player has join all the test games : not started,
         # in progress, ended and private.
         db_ok, games = self.gm.get_my_games(player_1_id)
@@ -149,10 +169,14 @@ class GMTests(unittest.TestCase):
         self.assertEqual(games, None)
         engine.db.change_db_fail(False)
 
+        _LOGGER.info('===END TEST_GET_MY_GAMES===')
+
     def test_get_pub_priv_games(self):
         """ methods tested:
         get_pub_priv_games
         """
+        _LOGGER.info('===BEGIN TEST_GET_PUB_PRIV_GAMES===')
+
         ## get the not started test games:
         # -'not started' test game is public
         # -'private' test game is private
@@ -168,12 +192,16 @@ class GMTests(unittest.TestCase):
         self.assertEqual(priv_games, None)
         engine.db.change_db_fail(False)
 
+        _LOGGER.info('===END TEST_GET_PUB_PRIV_GAMES===')
+
     def test_save_game(self):
         """ methods tested:
         load_game
         save_game
         load_game
         """
+        _LOGGER.info('===BEGIN TEST_SAVE_GAME===')
+
         in_progress_gid = 2
 
         # test load/get_game ok
@@ -202,12 +230,16 @@ class GMTests(unittest.TestCase):
         self.assertTrue(db_ok)
         self.assertFalse(upd_ok)
 
+        _LOGGER.info('===END TEST_SAVE_GAME===')
+
     def test_create_game(self):
         """ methods tested:
         create_game
         get_game
         load_game
         """
+        _LOGGER.info('===BEGIN TEST_CREATE_GAME===')
+
         player_1_id = 1
         player_2_id = 2
 
@@ -256,11 +288,15 @@ class GMTests(unittest.TestCase):
         engine.db.change_db_fail(False)
         self.assertFalse(db_ok)
 
+        _LOGGER.info('===END TEST_CREATE_GAME===')
+
     def test_getload_player(self):
         """ methods tested:
         load_player
         get_player
         """
+        _LOGGER.info('===BEGIN TEST_GETLOAD_PLAYER===')
+
         player_id_1 = 1
         not_player_id = 666
 
@@ -278,10 +314,14 @@ class GMTests(unittest.TestCase):
         self.assertEqual(dummy, None)
         engine.db.change_db_fail(False)
 
+        _LOGGER.info('===END TEST_GETLOAD_PLAYER===')
+
     def test_get_players_infos(self):
         """ method tested:
         get_players_infos
         """
+        _LOGGER.info('===BEGIN TEST_GET_PLAYERS_INFOS===')
+
         # check ok get_players_infos
         players_infos = self.gm.get_players_infos()
         self.assertEqual(players_infos, [(1, 'test player'),
@@ -293,10 +333,14 @@ class GMTests(unittest.TestCase):
         self.assertEqual(dummy, None)
         engine.db.change_db_fail(False)
 
+        _LOGGER.info('===END TEST_GET_PLAYERS_INFOS===')
+
     def test_auth_player(self):
         """ method tested:
         auth_player
         """
+        _LOGGER.info('===BEGIN TEST_AUTH_PLAYER===')
+
         player_id_1 = 1
 
         # check ok auth_player
@@ -321,10 +365,14 @@ class GMTests(unittest.TestCase):
         self.assertEqual(player_id, None)
         engine.db.change_db_fail(False)
 
+        _LOGGER.info('===END TEST_AUTH_PLAYER===')
+
     def test_create_player(self):
         """ methods tested:
         create_player
         """
+        _LOGGER.info('===BEGIN TEST_CREATE_PLAYER===')
+
         # check ok create_player
         name = 'new test player'
         email = 'new_test@test.com'
@@ -352,10 +400,14 @@ class GMTests(unittest.TestCase):
         self.assertEqual(player_id, None)
         engine.db.change_db_fail(False)
 
+        _LOGGER.info('===END TEST_CREATE_PLAYER===')
+
     def test_update_player(self):
         """ methods tested:
         update_player
         """
+        _LOGGER.info('===BEGIN TEST_UPDATE_PLAYER===')
+
         # check ok update_player, ok reload
         player_id = 1
         player = self.gm.get_player(player_id)
@@ -388,3 +440,5 @@ class GMTests(unittest.TestCase):
         self.assertFalse(db_ok)
         self.assertFalse(upd_ok)
         engine.db.change_db_fail(False)
+
+        _LOGGER.info('===END TEST_UPDATE_PLAYER===')

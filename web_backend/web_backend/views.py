@@ -20,6 +20,8 @@ from validate_email import validate_email
 from pyramid.httpexceptions import HTTPFound
 from pyramid.view import view_config
 
+_LOGGER = logging.getLogger('eclipsebb.views')
+
 # simple helpers
 def is_auth(request):
     """ check if the player is authentified """
@@ -179,7 +181,7 @@ def view_login(request):
                     request.session['player_id'] = player_id
                     request.session.flash('Login successful.')
                 else:
-                    logging.error(("Can't load player {} from "
+                    _LOGGER.error(("Can't load player {} from "
                                    "database").format(player_id))
                     return db_read_error(request, 'player')
             elif db_ok and not auth_ok:
@@ -303,7 +305,7 @@ def view_editprofile(request):
                 if db_ok:
                     return HTTPFound(location=request.route_url('home'))
                 else:
-                    logging.error(("Can't reload player {} from "
+                    _LOGGER.error(("Can't reload player {} from "
                                    "database").format(player.id_))
                     return db_read_error(request, 'player')
             else:

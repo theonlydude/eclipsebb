@@ -15,16 +15,19 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
+import logging
 import unittest
 from pyramid import testing
 import engine.db
+
+_LOGGER = logging.getLogger('eclipsebb.tests')
 
 class ViewTests(unittest.TestCase):
     """ functionnal tests of the views """
     def setUp(self):
 # init the web app in the constructor instead of setUp, to avoid overload.
 # currently the most time is spend by nosetest doing its stuffs,
-# not running the tests
+# not running the tests.
 #    def __init__(self, *args, **kargs):
 #        super(ViewTests, self).__init__(*args, **kargs)
         from paste.deploy.loadwsgi import appconfig
@@ -71,13 +74,19 @@ class ViewTests(unittest.TestCase):
 
     def test_view_home(self):
         """ test by calling the view directly """
+        _LOGGER.info('===BEGIN TEST_VIEW_HOME===')
+
         from .views import view_home
         request = testing.DummyRequest()
         response = view_home(request)
         self.assertEqual(response['auth'], False)
 
+        _LOGGER.info('===END TEST_VIEW_HOME===')
+
     def test_view_logout(self):
         """ test by using TestApp """
+        _LOGGER.info('===BEGIN TEST_VIEW_LOGOUT===')
+
         # log in sucessfully
         self._gen_test('/login', tests_true=['Login successful.'],
                         post={'email': 'test@test.com', 'password': 'test'})
@@ -88,8 +97,12 @@ class ViewTests(unittest.TestCase):
         # test unsuccess logout
         self._gen_test('/logout', tests_true=['Not logged in.'])
 
+        _LOGGER.info('===END TEST_VIEW_LOGOUT===')
+
     def test_view_login(self):
         """ test by using TestApp """
+        _LOGGER.info('===BEGIN TEST_VIEW_LOGIN===')
+
         # test get page leads to home
         self._gen_test('/login', tests_true=['/register', '/login'])
 
@@ -126,8 +139,12 @@ class ViewTests(unittest.TestCase):
         # test already logged
         self._gen_test('/login', tests_true=['Already logged in as '])
 
+        _LOGGER.info('===END TEST_VIEW_LOGIN===')
+
     def test_view_register(self):
         """ test by using TestApp """
+        _LOGGER.info('===BEGIN TEST_VIEW_REGISTER===')
+
         # test already logged
         self._gen_test('/login', tests_true=['Login successful.'],
                       post={'email': 'test@test.com', 'password': 'test'})
@@ -189,8 +206,12 @@ class ViewTests(unittest.TestCase):
                             'password': 'qwerty01', 'password2': 'qwerty01',
                             'timezone': '120'})
 
+        _LOGGER.info('===END TEST_VIEW_REGISTER===')
+
     def test_view_editprofile(self):
         """ test by using TestApp """
+        _LOGGER.info('===BEGIN TEST_VIEW_EDITPROFILE===')
+
         # test not auth, display home
         self._gen_test('/editprofile', tests_true=['New user ?'], follow=False)
 
@@ -254,8 +275,13 @@ class ViewTests(unittest.TestCase):
                             'password': 'test',
                             'password2': 'test',
                             'timezone': 300})
+
+        _LOGGER.info('===END TEST_VIEW_EDITPROFILE===')
+
     def test_view_create_game(self):
         """ test by using TestApp """
+        _LOGGER.info('===BEGIN TEST_VIEW_CREATE_GAME===')
+
         # test not auth, display home
         self._gen_test('/creategame', tests_true=['New user ?'], follow=False)
 
@@ -321,8 +347,12 @@ class ViewTests(unittest.TestCase):
                             'secret_world': 'on',
                             'alliances': 'on'})
 
+        _LOGGER.info('===END TEST_VIEW_CREATE_GAME===')
+
     def test_view_joingame(self):
         """ test by using TestApp """
+        _LOGGER.info('===BEGIN TEST_VIEW_JOINGAME===')
+
         # test not auth, display home
         self._gen_test('/joingame', tests_true=['New user ?'], follow=False)
 
@@ -344,8 +374,12 @@ class ViewTests(unittest.TestCase):
                                      'private game awaiting for players.')],
                        follow=False)
 
+        _LOGGER.info('===END TEST_VIEW_JOINGAME===')
+
     def test_view_mygames(self):
         """ test by using TestApp """
+        _LOGGER.info('===BEGIN TEST_VIEW_MYGAMES===')
+
         # test not auth, display home
         self._gen_test('/mygames', tests_true=['New user ?'], follow=False)
 
@@ -376,3 +410,5 @@ class ViewTests(unittest.TestCase):
         self._gen_test('/mygames',
                       tests_true=['You currently have no games in progress.'],
                       follow=False)
+
+        _LOGGER.info('===END TEST_VIEW_MYGAMES===')

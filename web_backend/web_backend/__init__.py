@@ -19,8 +19,11 @@ import pyramid
 from pyramid.config import Configurator
 from pyramid_beaker import session_factory_from_settings            
 from engine.game_manager import GamesManager
+import engine.util
 
 def includeme(config):
+    """ pyramid way of defining routes
+    """
     config.add_static_view('static', 'static', cache_max_age=3600)
     config.add_route('home', '/')
     config.add_route('login', '/login')
@@ -39,6 +42,9 @@ def main(global_config, **settings):
     test_mode = False
     if 'test_mode' in global_config:
         test_mode = True
+
+    # init logging
+    engine.util.init_logging(test_mode)
 
     gm = GamesManager(test_mode)
     settings['gm'] = gm
