@@ -39,6 +39,24 @@ class DBTests(unittest.TestCase):
         """ delete the temporary db """
         del self.db
 
+    def test_exec_script(self):
+        """ functions tested:
+        _exec_script
+        """
+        _LOGGER.info('===BEGIN TEST_EXEC_SCRIPT===')
+
+        # test non existent script
+        success = self.db._exec_script('dummy.sql')
+        self.assertFalse(success)
+
+        # test DB_ERROR
+        self.db.set_unittest_to_fail(True)
+        success = self.db._exec_script('test_db.sql')
+        self.assertFalse(success)
+        self.db.set_unittest_to_fail(False)
+
+        _LOGGER.info('===END TEST_EXEC_SCRIPT===')
+
     def test_db_fail(self):
         """ functions tested:
         change_db_fail

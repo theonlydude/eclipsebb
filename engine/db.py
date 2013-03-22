@@ -62,6 +62,10 @@ class MockDB(object):
         """ do not return a cursor, raise an error """
         raise sqlite3.DatabaseError
 
+    def executescript(self, script):
+        """ do not execute script, raise an error """
+        raise sqlite3.DatabaseError
+
     def close(self):
         """ for the finally close """
         pass
@@ -150,6 +154,8 @@ class DBInterface(object):
             self._logger.exception(msg)
             return False
         else:
+            msg = 'Success executed SQL script {} in {}'.format(name, cwd)
+            self._logger.info(msg)
             return True
         finally:
             if 'db' in locals():
@@ -158,6 +164,7 @@ class DBInterface(object):
     def _connect(self):
         """ the detect_types param of the connect method allow us to store
         python types directly in the database.
+        For unittests return a mock db which raises exceptions
         args: None
         return: sqlite3 db object
         """
@@ -207,17 +214,17 @@ class DBInterface(object):
 
             # create game
             cursor.execute(sql_game, params_game)
-            game.id_ = cursor.lastrowid
+            game_id = cursor.lastrowid
 
             # add game/player
             for player_id in players_ids:
                 if player_id is not None and player_id != -1:
-                    cursor.execute(sql_player, (game.id_, player_id))
+                    cursor.execute(sql_player, (game_id, player_id))
                     game.players_ids.append(player_id)
 
             # add game/extensions
             for ext_id in game.extensions:
-                cursor.execute(sql_extension, (game.id_, ext_id))
+                cursor.execute(sql_extension, (game_id, ext_id))
 
             # commit only when everything is inserted
             db.commit()
@@ -227,6 +234,11 @@ class DBInterface(object):
             self._logger.exception(msg)
             return (DB_STATUS.ERROR, None)
         else:
+            game.id_ = game_id
+
+            msg = ('Game {!r} by {} successfully created with id {}'
+                   '').format(game.name, game.creator_id, game.id_)
+            self._logger.info(msg)
             return (DB_STATUS.OK, game)
         finally:
             if 'cursor' in locals():
@@ -260,6 +272,8 @@ class DBInterface(object):
                 self._logger.warning(msg)
                 return (DB_STATUS.NO_ROWS, None)
             else:
+                msg = 'Game {} successfully updated'.format(game.id_)
+                self._logger.info(msg)
                 return (DB_STATUS.OK, None)
         finally:
             if 'cursor' in locals():
@@ -292,9 +306,13 @@ class DBInterface(object):
         else:
             game_params = cursor.fetchone()
             if game_params is None:
+                msg = 'Game {} not found in database'.format(game_id)
+                self._logger.warning(msg)
                 return (DB_STATUS.NO_ROWS, None)
 
             game = Game.from_db(**game_params)
+            msg = 'Game {} successfully loaded from database'.format(game.id_)
+            self._logger.info(msg)
             return (DB_STATUS.OK, game)
         finally:
             if 'cursor' in locals():
@@ -323,6 +341,8 @@ class DBInterface(object):
         else:
             players_ids = cursor.fetchall()
             players_ids = [id_[0] for id_ in players_ids]
+            msg = 'Success loading players ids for game {}'.format(game_id)
+            self._logger.info(msg)
             return (DB_STATUS.OK, players_ids)
         finally:
             if 'cursor' in locals():
@@ -352,6 +372,8 @@ class DBInterface(object):
         else:
             ext_ids_names = cursor.fetchall()
             ext_ids_names = dict(ext_ids_names)
+            msg = 'Success loaded extensions for game {}'.format(game_id)
+            self._logger.info(msg)
             return (DB_STATUS.OK, ext_ids_names)
         finally:
             if 'cursor' in locals():
@@ -381,6 +403,8 @@ class DBInterface(object):
         else:
             states_ids = cursor.fetchall()
             states_ids = [id_[0] for id_ in states_ids]
+            msg = 'Success loaded states ids for game {}'.format(game_id)
+            self._logger.info(msg)
             return (DB_STATUS.OK, states_ids)
         finally:
             if 'cursor' in locals():
@@ -422,6 +446,7 @@ class DBInterface(object):
             pub_ids = [id_[0] for id_ in pub_ids]
             priv_ids = cursor_priv.fetchall()
             priv_ids = [id_[0] for id_ in priv_ids]
+            self._logger.info('Success loaded priv/pub games')
             return (DB_STATUS.OK, (pub_ids, priv_ids))
         finally:
             if 'cursor_pub' in locals():
@@ -454,6 +479,8 @@ class DBInterface(object):
         else:
             game_ids = cursor.fetchall()
             game_ids = [id_[0] for id_ in game_ids]
+            msg = 'Success loaded games for player {}'.format(player_id)
+            self._logger.info(msg)
             return (DB_STATUS.OK, game_ids)
         finally:
             if 'cursor' in locals():
@@ -491,6 +518,8 @@ class DBInterface(object):
         else:
             # the id primary key = rowid in sqlite3
             player_id = cursor.lastrowid
+            msg = 'Success created player {} id {}'.format(name, player_id)
+            self._logger.info(msg)
             return (DB_STATUS.OK, player_id)
         finally:
             if 'cursor' in locals():
@@ -545,6 +574,8 @@ class DBInterface(object):
                 self._logger.warning(msg)
                 return (DB_STATUS.NO_ROWS, None)
             else:
+                msg = 'Success updated player {} infos'.format(player.id_)
+                self._logger.info(msg)
                 return (DB_STATUS.OK, None)
         finally:
             if 'cursor' in locals():
@@ -578,9 +609,13 @@ class DBInterface(object):
         else:
             result = cursor.fetchone()
             if result is None:
+                msg = 'Player {} auth failed (pass={})'.format(email, password)
+                self._logger.info(msg)
                 return (DB_STATUS.NO_ROWS, None)
             else:
                 player_id = result[0]
+                msg = 'Success auth player {} id {}'.format(email, player_id)
+                self._logger.info(msg)
                 return (DB_STATUS.OK, player_id)
         finally:
             if 'cursor' in locals():
@@ -613,6 +648,8 @@ class DBInterface(object):
                 self._logger.warning(msg)
                 return (DB_STATUS.NO_ROWS, None)
             else:
+                msg = 'Success loaded player {}'.format(player_id)
+                self._logger.info(msg)
                 return (DB_STATUS.OK, WebPlayer(*result))
         finally:
             if 'cursor' in locals():
@@ -639,6 +676,7 @@ class DBInterface(object):
             self._logger.exception('Error while fetching players infos')
             return (DB_STATUS.ERROR, None)
         else:
+            self._logger.info('Success loaded players infos')
             return (DB_STATUS.OK, cursor.fetchall())
         finally:
             if 'cursor' in locals():
@@ -675,6 +713,8 @@ class DBInterface(object):
             return (DB_STATUS.ERROR, None)
         else:
             state_id = cursor.lastrowid
+            msg = 'Success saved state {} for game {}'.format(state_id, game_id)
+            self._logger.info(msg)
             return (DB_STATUS.OK, state_id)
         finally:
             if 'cursor' in locals():
@@ -704,8 +744,12 @@ class DBInterface(object):
         else:
             data = cursor.fetchone()
             if data is None:
+                msg = 'State {} not found in database'.format(state_id)
+                self._logger.warning(msg)
                 return (DB_STATUS.NO_ROWS, None)
             pic_state = data[0]
+            msg = 'Success loaded state {}'.format(state_id)
+            self._logger.info(msg)
             return (DB_STATUS.OK, pickle.loads(pic_state))
         finally:
             if 'cursor' in locals():
@@ -732,6 +776,7 @@ class DBInterface(object):
             self._logger.exception('Error while fetching extensions infos')
             return (DB_STATUS.ERROR, None)
         else:
+            self._logger.info('Success loaded extensions infos')
             return (DB_STATUS.OK, cursor.fetchall())
         finally:
             if 'cursor' in locals():
@@ -759,6 +804,7 @@ class DBInterface(object):
             return (DB_STATUS.ERROR, None)
         else:
             tz = cursor.fetchall()
+            self._logger.info('Success loaded timezones infos')
             return (DB_STATUS.OK, Timezones(tz))
         finally:
             if 'cursor' in locals():

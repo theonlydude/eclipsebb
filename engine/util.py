@@ -19,21 +19,21 @@ import logging
 import os
 import sys
 
-ind_level = 0
-IND_STR = ' '
+_ind_level = 0
+_IND_STR = ' '
 def log(fun):
     """ a simple decorator to display functions calls with params/return """
     def _logger(*args, **kargs):
         """ inner function """
-        global ind_level
-        ind_level += 1
+        global _ind_level
+        _ind_level += 1
 
         app_logger = logging.getLogger('eclipsebb.util')
-        app_logger.debug("{}in_){} [{}] [[{}]]".format(IND_STR*ind_level, fun,
+        app_logger.debug("{}in_){} [{}] [[{}]]".format(_IND_STR*_ind_level, fun,
                                                        args, kargs))
         ret = fun(*args, **kargs)
-        app_logger.debug("{}out){} [{}]".format(IND_STR*ind_level, fun, ret))
-        ind_level -= 1
+        app_logger.debug("{}out){} [{}]".format(_IND_STR*_ind_level, fun, ret))
+        _ind_level -= 1
         return ret
     return _logger
 
@@ -48,7 +48,7 @@ def init_logging(test_mode=False):
     """ put logging into a log file, use different loggers for the different
     modules in the application, the main logger beeing called 'eclipsebb'
     """
-    # called by every tests, but must only be executed once
+    # called by every tests, but must be executed only once
     global _already_called
     if _already_called:
         return
