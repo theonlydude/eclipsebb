@@ -36,7 +36,7 @@ class GamesManager(object):
       self._db (DBInterface object): the DB interface object
     """
     def __init__(self, test_mode=False):
-        self._logger = logging.getLogger('eclipsebb.gm')
+        self._logger = logging.getLogger('ecbb.gm')
 
         # TODO::limit the number of games loaded in memory at the same
         # time to avoid too important memory consumption

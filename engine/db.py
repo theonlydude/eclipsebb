@@ -91,7 +91,7 @@ class DBInterface(object):
     """
     def __init__(self, test_mode=False):
         """ if the .db file doesn't exist create all the tables in the db """
-        self._logger = logging.getLogger('eclipsebb.db')
+        self._logger = logging.getLogger('ecbb.db')
 
         # for db unittest, to mock the db sqlite3 object
         self._unittest = False

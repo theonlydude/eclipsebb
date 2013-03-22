@@ -20,7 +20,7 @@ from validate_email import validate_email
 from pyramid.httpexceptions import HTTPFound
 from pyramid.view import view_config
 
-_LOGGER = logging.getLogger('eclipsebb.views')
+_LOGGER = logging.getLogger('ecbb.views')
 
 # simple helpers
 def is_auth(request):

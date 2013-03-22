@@ -27,7 +27,7 @@ import engine.util
 
 # init test logging
 engine.util.init_logging(test_mode=True)
-_LOGGER = logging.getLogger('eclipsebb.tests')
+_LOGGER = logging.getLogger('ecbb.tests')
 
 class DBTests(unittest.TestCase):
     """ test all the methods defined by the db to access it """

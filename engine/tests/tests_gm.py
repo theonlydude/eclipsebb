@@ -23,7 +23,7 @@ from engine.game_manager import GamesManager
 import engine.util
 
 engine.util.init_logging(test_mode=True)
-_LOGGER = logging.getLogger('eclipsebb.tests')
+_LOGGER = logging.getLogger('ecbb.tests')
 
 class GMTests(unittest.TestCase):
     """ test all the methods defined in the GameManager module """

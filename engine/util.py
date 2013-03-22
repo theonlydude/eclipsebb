@@ -28,7 +28,7 @@ def log(fun):
         global _ind_level
         _ind_level += 1
 
-        app_logger = logging.getLogger('eclipsebb.util')
+        app_logger = logging.getLogger('ecbb.util')
         app_logger.debug("{}in_){} [{}] [[{}]]".format(_IND_STR*_ind_level, fun,
                                                        args, kargs))
         ret = fun(*args, **kargs)
@@ -64,16 +64,19 @@ def init_logging(test_mode=False):
         logging.exception(msg)
         sys.exit()
 
-    # init eclipsebb main logger
-    logger = logging.getLogger('eclipsebb')
-    logger.setLevel(logging.DEBUG)
+    ## create a logger only during tests, pyramid already create one
+    if test_mode is True:
+        # init eclipsebb main logger
+        logger = logging.getLogger('ecbb')
+        logger.setLevel(logging.DEBUG)
 
-    # during tests empty the log file first
-    mode = 'w' if test_mode else 'a'
-    log_file = os.path.join(shared_path, 'eclipsebb.log')
-    file_hand = logging.FileHandler(log_file, mode=mode)
-    file_hand.setLevel(logging.DEBUG)
+        # during tests empty the log file first
+        mode = 'w'
+        log_file = os.path.join(shared_path, 'eclipsebb.log')
+        file_hand = logging.FileHandler(log_file, mode=mode)
+        file_hand.setLevel(logging.DEBUG)
 
-    form = logging.Formatter('%(asctime)s:%(name)s:%(levelname)s:%(message)s')
-    file_hand.setFormatter(form)
-    logger.addHandler(file_hand)
+        form = logging.Formatter(('%(asctime)s:%(levelname)-5.5s:'
+                                  '[%(name)s]:%(message)s'))
+        file_hand.setFormatter(form)
+        logger.addHandler(file_hand)

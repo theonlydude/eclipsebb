@@ -20,7 +20,7 @@ import unittest
 from pyramid import testing
 import engine.db
 
-_LOGGER = logging.getLogger('eclipsebb.tests')
+_LOGGER = logging.getLogger('ecbb.tests')
 
 class ViewTests(unittest.TestCase):
     """ functionnal tests of the views """
