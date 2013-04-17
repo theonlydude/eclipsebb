@@ -14,7 +14,7 @@ Logged as ${player.name}<br />
 <a href="${request.route_url('joingame')}">Join game</a>/
 <a href="${request.route_url('creategame')}">Create new game</a>/
 <a href="${request.route_url('editprofile')}">Edit profile</a>/
-<a href="${request.route_url('logout')}">logout</a>
+<a href="${request.route_url('logout')}">Logout</a>
 <br />
 
 ${next.body()}

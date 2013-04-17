@@ -3,6 +3,7 @@
 
 <% 
 gm =  request.registry.settings['gm']
+my_player = gm.get_player(request.session['player_id'])
 %>
 
 <h1>My games</h1>
@@ -45,9 +46,17 @@ gm =  request.registry.settings['gm']
   <td rowspan="${game.num_players}">${game.cur_state.id_}</td>
   <td>${web_player.name}</td>
     % if game_player is None:
-  <td>unassigned yet</td>
+      % if my_player.id_ == web_player.id_:
+        <td><a>Choose races</a></td>
+      % else:
+        <td>Race wishes not done</td>
+      % endif
     % else:
-  <td>${game_player.race}</td>
+      % if self.race is not None:
+	<td>${game_player.race}</td>
+      % else:
+	<td>Race wishes done</td>
+      % endif
     % endif
   <td rowspan="${game.num_players}">/
     % for ext in game.extensions.values():
@@ -67,9 +76,17 @@ gm =  request.registry.settings['gm']
 <tr>
   <td>${web_player.name}</td>
           % if game_player is None:
-  <td>unassigned yet</td>
+            % if my_player.id_ == web_player.id_:
+              <td><a>Choose races</a></td>
+            % else:
+              <td>Race wishes not done</td>
+            % endif
           % else:
-  <td>${game_player.race}</td>
+            % if self.race is not None:
+	      <td>${game_player.race}</td>
+            % else:
+	      <td>Race wishes done</td>
+            % endif
           % endif
 </tr>
         % endif

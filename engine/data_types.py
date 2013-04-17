@@ -20,14 +20,16 @@ import engine.util
 # everything is stored inside the Game State
 
 class Player(object):
-    """ a player in the game """
+    """ a player in the game.
+    created in the game state when a player choose its races.
+    """
     def __init__(self, id_, name, races_wishes):
         # the id_ is the same as the web player id_
         self.id_ = id_
         # name is the same as the web player name
         self.name = name
-        # race is a string
-        self.race = 'unassigned'
+        # race is a string, assigned from races_wishes at game start
+        self.race = None
         # a tab of #players races whishes, first is preferred one
         self.races_wishes = races_wishes
 
