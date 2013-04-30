@@ -228,7 +228,8 @@ def view_register(request):
         tz_id = get_post_int(request, 'timezone')
 
         # validate no empty field
-        if not name or not email or not password or not password2 or not tz_id:
+        if (name is None or email is None or password is None
+            or password2 is None or tz_id is None):
             request.session.flash('Enter name, email, password and timezone.')
             return return_values
 
