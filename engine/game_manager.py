@@ -75,13 +75,17 @@ class GamesManager(object):
         return: db_ok (bool)
         """
         game = Game(creator_id, name, level, private, password,
-                    num_players, extensions)
+                    num_players, extensions, init_state=True)
 
         (status, game) = self._db.create_game(game, players_ids)
-
         if status != DB_STATUS.OK:
             self._logger.error(("Error inserting game {!r} by {} in "
                                 "database.").format(name, creator_id))
+            return False
+
+        (status, _) = self._db.save_state(game)
+        if status != DB_STATUS.OK:
+            self._logger.error("Error saving game {} state.".format(game.id_))
             return False
 
         self._logger.info("Game {!r} successfully created".format(name))
@@ -92,9 +96,14 @@ class GamesManager(object):
     @engine.util.log
     def save_game(self, game):
         """ update an existing game into the database.
+        first save the current state to get its id, then update the game in db.
         args: game (Game object): the game to save
         return: db_ok (bool), upd_ok (bool)
         """
+        (status, _) = self._db.save_state(game)
+        if status != DB_STATUS.OK:
+            return (False, False)
+
         (status, _) = self._db.save_game(game)
         return (status != DB_STATUS.ERROR, status != DB_STATUS.NO_ROWS)
 
@@ -153,12 +162,18 @@ class GamesManager(object):
         # load states
         (status, states_ids) = self._db.get_game_states_ids(game_id)
         if status != DB_STATUS.OK:
-            self._logger.error(("Error loading states ids for game "
-                                "{}").format(game_id))
+            self._logger.error(("Error loading states ids for game {}"
+                                "").format(game_id))
             return (False, None)
         game.states_ids = states_ids
 
-        # TODO::load current state
+        # load current state
+        (status, state) = self._db.load_state(game.cur_state_id())
+        if status != DB_STATUS.OK:
+            self._logger.error(("Error loading state {} for game {}"
+                                "").format(game.cur_state_id(), game.id_))
+            return (False, None)
+        game.cur_state = state
 
         self._games[game_id] = game
 

@@ -17,7 +17,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from collections import OrderedDict
 from datetime import datetime
+import logging
 from engine.data_types import GameState
+import engine.util
 
 class WebPlayer(object):
     """ Map the infos stored in database """
@@ -57,7 +59,7 @@ class Game(object):
      -when loading from the DB
     """
     def __init__(self, creator_id, name, level, private, password,
-                 num_players, extensions):
+                 num_players, extensions, init_state):
         """ creating new game """
         ####################
         # fields saved in DB
@@ -66,7 +68,6 @@ class Game(object):
         self.started = False
         self.ended = False
         self.level = level
-        self.cur_state_id = -1
 
         self.private = private
         self.password = password
@@ -81,7 +82,7 @@ class Game(object):
         # extensions is a dict of id->name
         self.extensions = extensions
         # the different states throughout the game
-        self.state_ids = []
+        self.states_ids = []
 
         ########################
         # fields not saved in DB
@@ -90,37 +91,29 @@ class Game(object):
         # turn if one of its actions is not valid
         self.last_valid_state_id = None
 
-        self.cur_state = GameState(num_players)
+        if init_state:
+            self.cur_state = GameState(num_players)
 
     @classmethod
     def from_db(cls, **kargs):
         """ constructor when game is loaded from DB """
         game = cls(kargs['creator_id'], kargs['name'], kargs['level'],
                    kargs['private'], kargs['password'],
-                   kargs['num_players'], {})
+                   kargs['num_players'], {}, init_state=False)
         game.id_ = kargs['id']
         game.started = kargs['started']
         game.ended = kargs['ended']
-        game.cur_state_id = kargs['cur_state_id']
         game.start_date = kargs['start_date']
         game.last_play = kargs['last_play']
 
         return game
 
-    def load_cur_state(self):
-        """ when loading a game from the DB the current state is not loaded,
-        it must be manually loaded later by the games manager.
-        args: None
-        return:
-         True: loading successful
-         False: error loading/missing state
-        """
-        if self.cur_state_id == -1:
-            return True
-
-        # load current state from DB
-        # TODO::if db error or missing state ??
-        return True
+    @engine.util.log
+    def cur_state_id(self):
+        if len(self.states_ids) == 0:
+            return -1
+        else:
+            return self.states_ids[-1]
 
 #    def get_state(self, state_id):
 #        """ access to previous states """

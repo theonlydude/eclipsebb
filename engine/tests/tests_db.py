@@ -140,10 +140,10 @@ class DBTests(unittest.TestCase):
                                      6: 'ancient_hives'})
 
         ## get the states played in the game 1
-        # no states, not implemented yet
+        # default state for now
         status, states_ids = self.db.get_game_states_ids(not_started_gid)
         self.assertEqual(status, DB_STATUS.OK)
-        self.assertEqual(states_ids, [])
+        self.assertEqual(states_ids, [1])
 
         ## get the not started test games
         # the 'not started' test game is public
@@ -174,7 +174,7 @@ class DBTests(unittest.TestCase):
         self.assertEqual(game.started, True)
         self.assertEqual(game.ended, False)
         self.assertEqual(game.level, 2)
-        self.assertEqual(game.cur_state_id, -1)
+        self.assertEqual(game.cur_state_id(), -1)
         self.assertEqual(game.private, False)
         self.assertEqual(game.password, '')
         start_date = datetime.strptime('2006-06-06 06:06:06.666666',
@@ -188,13 +188,12 @@ class DBTests(unittest.TestCase):
         # loaded by the gm, not db, so must be empty
         self.assertEqual(game.players_ids, [])
         self.assertEqual(game.extensions, {})
-        self.assertEqual(game.state_ids, [])
+        self.assertEqual(game.states_ids, [])
         self.assertEqual(game.last_valid_state_id, None)
 
         ## test updating a game
         # update game
         game.last_play = datetime.now()
-        game.cur_state_id = 666
         status, _ = self.db.save_game(game)
         self.assertEqual(status, DB_STATUS.OK)
 
@@ -202,7 +201,7 @@ class DBTests(unittest.TestCase):
         status, game_mod = self.db.load_game(in_progress_gid)
         self.assertEqual(status, DB_STATUS.OK)
         self.assertEqual(game.last_play, game_mod.last_play)
-        self.assertEqual(game.cur_state_id, game_mod.cur_state_id)
+        self.assertEqual(game.cur_state_id(), game_mod.cur_state_id())
 
         # updating a game with wrong id
         game_mod.id_ = 666
@@ -212,7 +211,8 @@ class DBTests(unittest.TestCase):
         ## test creating a new game
         new_game = Game(creator_id=1, name='game creation test', level=3,
                         private=True, password='test', num_players=3,
-                        extensions={1: 'rare_technologies', 11: 'alliances'})
+                        extensions={1: 'rare_technologies', 11: 'alliances'},
+                        init_state=True)
         players_ids = [player_1_id, player_2_id]
         status, new_game = self.db.create_game(new_game, players_ids)
         self.assertEqual(status, DB_STATUS.OK)
@@ -225,7 +225,8 @@ class DBTests(unittest.TestCase):
         self.assertEqual(new_game.started, new_game_reload.started)
         self.assertEqual(new_game.ended, new_game_reload.ended)
         self.assertEqual(new_game.level, new_game_reload.level)
-        self.assertEqual(new_game.cur_state_id, new_game_reload.cur_state_id)
+        self.assertEqual(new_game.cur_state_id(),
+                         new_game_reload.cur_state_id())
         self.assertEqual(new_game.private, new_game_reload.private)
         self.assertEqual(new_game.password, new_game_reload.password)
         self.assertEqual(new_game.start_date, new_game_reload.start_date)
@@ -235,12 +236,12 @@ class DBTests(unittest.TestCase):
         # load_game returns an incomplete game
         self.assertNotEqual(new_game.players_ids, new_game_reload.players_ids)
         self.assertNotEqual(new_game.extensions, new_game_reload.extensions)
-        # TODO::no states for now
-        self.assertEqual(new_game.state_ids, new_game_reload.state_ids)
+        # states are handled from game_mangager
+        self.assertEqual(new_game.states_ids, new_game_reload.states_ids)
         self.assertEqual(new_game.last_valid_state_id,
                          new_game_reload.last_valid_state_id)
-        self.assertEqual(new_game.cur_state.__dict__,
-                         new_game_reload.cur_state.__dict__)
+        #self.assertEqual(new_game.cur_state.__dict__,
+        #                 new_game_reload.cur_state.__dict__)
 
         # test DB_ERROR
         self.db.set_unittest_to_fail(True)
@@ -387,18 +388,26 @@ class DBTests(unittest.TestCase):
         """
         _LOGGER.info('===BEGIN TEST_STATE===')
 
-        # TODO::empty states for now...
         ## save
-        game_id = 1
-        state = GameState(num_players=2)
-        status, state_id = self.db.save_state(game_id, state)
+        player_1_id = 1
+        player_2_id = 2
+        game = Game(creator_id=1, name='game creation test', level=3,
+                    private=True, password='test', num_players=3,
+                    extensions={1: 'rare_technologies', 11: 'alliances'},
+                    init_state=True)
+        players_ids = [player_1_id, player_2_id]
+        status, game = self.db.create_game(game, players_ids)
         self.assertEqual(status, DB_STATUS.OK)
-        self.assertEqual(state_id, 1)
+
+        status, state_id = self.db.save_state(game)
+        self.assertEqual(status, DB_STATUS.OK)
+        self.assertEqual(game.cur_state_id(), state_id)
+        self.assertTrue(state_id in game.states_ids)
 
         ## load
         status, state_loaded = self.db.load_state(state_id)
         self.assertEqual(status, DB_STATUS.OK)
-        self.assertEqual(state.__dict__, state_loaded.__dict__)
+        self.assertEqual(game.cur_state.__dict__, state_loaded.__dict__)
 
         not_a_state_id = 666
         status, dummy_state = self.db.load_state(not_a_state_id)
@@ -407,7 +416,7 @@ class DBTests(unittest.TestCase):
 
         # test DB_ERROR
         self.db.set_unittest_to_fail(True)
-        status, dummy = self.db.save_state(game_id, state)
+        status, dummy = self.db.save_state(game)
         self.assertEqual(status, DB_STATUS.ERROR)
         self.assertEqual(dummy, None)
         status, dummy = self.db.load_state(state_id)

@@ -93,7 +93,8 @@ class GMTests(unittest.TestCase):
         self.assertEqual(game.started, True)
         self.assertEqual(game.ended, False)
         self.assertEqual(game.level, 2)
-        self.assertEqual(game.cur_state_id, -1)
+        state_id = 2
+        self.assertEqual(game.cur_state_id(), state_id)
         self.assertEqual(game.private, False)
         self.assertEqual(game.password, '')
         start_date = datetime.strptime('2006-06-06 06:06:06.666666',
@@ -108,7 +109,7 @@ class GMTests(unittest.TestCase):
         self.assertEqual(game.extensions, {1: 'rare_technologies',
                                            3: 'ancient_worlds',
                                            5: 'ancient_sdcg'})
-        self.assertEqual(game.state_ids, [])
+        self.assertEqual(game.states_ids, [2])
         self.assertEqual(game.last_valid_state_id, None)
 
         _LOGGER.info('===END TEST_LOAD_GAME===')
@@ -139,6 +140,9 @@ class GMTests(unittest.TestCase):
         db_ok, game = self.gm.load_game(in_progress_gid, force=True)
         self.assertFalse(db_ok)
         engine.db.change_db_fail(True, 'get_game_states_ids')
+        db_ok, game = self.gm.load_game(in_progress_gid, force=True)
+        self.assertFalse(db_ok)
+        engine.db.change_db_fail(True, 'load_state')
         db_ok, game = self.gm.load_game(in_progress_gid, force=True)
         self.assertFalse(db_ok)
         engine.db.change_db_fail(False)
@@ -212,7 +216,6 @@ class GMTests(unittest.TestCase):
         ## test updating a game
         # update game
         game.last_play = datetime.now()
-        game.cur_state_id = 666
         db_ok, upd_ok = self.gm.save_game(game)
         self.assertTrue(db_ok)
         self.assertTrue(upd_ok)
@@ -222,13 +225,19 @@ class GMTests(unittest.TestCase):
         self.assertTrue(db_ok)
         self.assertNotEqual(game_mod, None)
         self.assertEqual(game.last_play, game_mod.last_play)
-        self.assertEqual(game.cur_state_id, game_mod.cur_state_id)
+        self.assertEqual(game.cur_state_id(), game_mod.cur_state_id())
 
         # updating a game with wrong id
         game_mod.id_ = 666
         db_ok, upd_ok = self.gm.save_game(game_mod)
         self.assertTrue(db_ok)
         self.assertFalse(upd_ok)
+
+        # check db fail
+        engine.db.change_db_fail(True, 'save_state')
+        db_ok, upd_ok = self.gm.save_game(game)
+        self.assertFalse(db_ok)
+        engine.db.change_db_fail(False)
 
         _LOGGER.info('===END TEST_SAVE_GAME===')
 
@@ -266,7 +275,8 @@ class GMTests(unittest.TestCase):
         self.assertEqual(new_game.started, new_game_reload.started)
         self.assertEqual(new_game.ended, new_game_reload.ended)
         self.assertEqual(new_game.level, new_game_reload.level)
-        self.assertEqual(new_game.cur_state_id, new_game_reload.cur_state_id)
+        self.assertEqual(new_game.cur_state_id(),
+                         new_game_reload.cur_state_id())
         self.assertEqual(new_game.private, new_game_reload.private)
         self.assertEqual(new_game.password, new_game_reload.password)
         self.assertEqual(new_game.start_date, new_game_reload.start_date)
@@ -275,8 +285,7 @@ class GMTests(unittest.TestCase):
         self.assertEqual(new_game.creator_id, new_game_reload.creator_id)
         self.assertEqual(new_game.players_ids, new_game_reload.players_ids)
         self.assertEqual(new_game.extensions, new_game_reload.extensions)
-        # TODO::no states for now
-        self.assertEqual(new_game.state_ids, new_game_reload.state_ids)
+        self.assertEqual(new_game.states_ids, new_game_reload.states_ids)
         self.assertEqual(new_game.last_valid_state_id,
                          new_game_reload.last_valid_state_id)
         self.assertEqual(new_game.cur_state.__dict__,
@@ -284,6 +293,10 @@ class GMTests(unittest.TestCase):
 
         # db error creating a new game
         engine.db.change_db_fail(True)
+        db_ok = self.gm.create_game(1, 'fail test', 3, False, '', 2, [1], {})
+        self.assertFalse(db_ok)
+
+        engine.db.change_db_fail(True, 'save_state')
         db_ok = self.gm.create_game(1, 'fail test', 3, False, '', 2, [1], {})
         engine.db.change_db_fail(False)
         self.assertFalse(db_ok)

@@ -178,7 +178,7 @@ class DBInterface(object):
         """ generate the sha1 hash of the salted password.
         args:
           id_ (str): the two first chars of id_ are used for the salt
-         password (str): unencrypted password
+          password (str): unencrypted password
         return: (str) sha1 of the salted password
         """
         salted_pass = id_[:2] + password
@@ -193,7 +193,9 @@ class DBInterface(object):
     @engine.util.log
     @fail
     def create_game(self, game, players_ids):
-        """ create a game in the db, the rowid is the game id
+        """ create a game in the db, the rowid is the game id.
+        store the players who joined the game, the selected extensions.
+        Do not save the initial state.
         args:
           game: incomplete game object, miss players_ids
           players_ids: [id_1 (int), ..., id_2 (int)]
@@ -208,6 +210,7 @@ class DBInterface(object):
                       'VALUES (?, ?);')
         sql_extension = ('INSERT INTO games_extensions (game_id, '
                          'extension_id) VALUES (?, ?);')
+
         try:
             db = self._connect()
             cursor = db.cursor()
@@ -253,13 +256,14 @@ class DBInterface(object):
         args: complete game object
         return: db_status, None
         """
-        sql = ('UPDATE games SET started=?, ended=?, cur_state_id=?, '
-               'last_play=? WHERE id = ?')
+        sql = ('UPDATE games '
+               'SET started=?, ended=?, last_play=? '
+               'WHERE id = ?;')
         try:
             db = self._connect()
             cursor = db.cursor()
 
-            cursor.execute(sql, (game.started, game.ended, game.cur_state_id,
+            cursor.execute(sql, (game.started, game.ended,
                                  game.last_play, game.id_))
             db.commit()
         except sqlite3.DatabaseError:
@@ -288,7 +292,7 @@ class DBInterface(object):
         args: game_id (int)
         return: db_status, incomplete Game object
 
-        do not load players ids, extensions ids, states ids
+        do not load players ids, extensions ids, states ids, cur state
         """
         sql = ('SELECT * '
                'FROM games '
@@ -686,34 +690,35 @@ class DBInterface(object):
 
     @engine.util.log
     @fail
-    def save_state(self, game_id, state):
-        """ pickle the state and store it in the db
+    def save_state(self, game):
+        """ pickle the state and store it in the db.
+        update the states_ids of the game.
         infos saved in the database for a state:
          -id: uniq increasing id (sqlite rowid)
          -gameid: id of the game hosting the state
          -pickle: pickled string of the state
 
         args:
-         game_id (int)
-         state (GameState object)
+         game (Game object)
         return: db_status,
                 state_id (int), None if error
         """
         sql = ('INSERT INTO state '
                'VALUES (NULL, ?, ?);')
         try:
-            pic_state = pickle.dumps(state)
+            pic_state = pickle.dumps(game.cur_state)
             db = self._connect()
             cursor = db.cursor()
-            cursor.execute(sql, (game_id, pic_state))
+            cursor.execute(sql, (game.id_, pic_state))
             db.commit()
         except sqlite3.DatabaseError:
-            msg = 'Error while saving state for game {}'.format(game_id)
+            msg = 'Error while saving state for game {}'.format(game.id_)
             self._logger.exception(msg)
             return (DB_STATUS.ERROR, None)
         else:
             state_id = cursor.lastrowid
-            msg = 'Success saved state {} for game {}'.format(state_id, game_id)
+            game.states_ids.append(state_id)
+            msg = 'Success saved state {} for game {}'.format(state_id, game.id_)
             self._logger.info(msg)
             return (DB_STATUS.OK, state_id)
         finally:
